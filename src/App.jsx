@@ -125,8 +125,9 @@ const SEED_ITEMS = [
 function load() {
   try {
     const raw = localStorage.getItem('rl_items')
-    const items = raw ? JSON.parse(raw) : SEED_ITEMS
-    if (!raw) localStorage.setItem('rl_items', JSON.stringify(SEED_ITEMS))
+    const parsed = raw ? JSON.parse(raw) : []
+    const items = parsed.length > 0 ? parsed : SEED_ITEMS
+    if (parsed.length === 0) localStorage.setItem('rl_items', JSON.stringify(SEED_ITEMS))
     return {
       items,
       category: localStorage.getItem('rl_category') || '👟 Sneakers',
