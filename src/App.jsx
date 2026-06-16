@@ -9,7 +9,7 @@ const STATUS_COLORS = {
   "Pending": { bg:"#2a2a1a", accent:"#f59e0b", text:"#f59e0b" },
 }
 const CATEGORIES = {
-  "💟 Sneakers":      { emoji:"💟", label:"Sneakers",      sub1:"Colorway",         sub2:"SKU",          sizeType:"shoe"    },
+  "👟 Sneakers":      { emoji:"👟", label:"Sneakers",      sub1:"Colorway",         sub2:"SKU",          sizeType:"shoe"    },
   "🃏 Trading Cards": { emoji:"🃏", label:"Trading Cards", sub1:"Set / Edition",    sub2:"Card #",       sizeType:"none"    },
   "👕 Clothing":      { emoji:"👕", label:"Clothing",      sub1:"Color / Style",    sub2:"SKU",          sizeType:"apparel" },
   "🎮 Electronics":   { emoji:"🎮", label:"Electronics",   sub1:"Model / Variant",  sub2:"Serial / SKU", sizeType:"none"    },
@@ -37,10 +37,12 @@ function newItem() {
 }
 
 const SEED_ITEMS = [
+  // 17 May — AP Swatch Ocho Negro
   { id:"1747440000001", name:"AP Swatch Ocho Negro", sub1:"", sub2:"", size:"", qty:"1",
     buyPrice:"335", sellPrice:"1600", platformFee:"", shippingCost:"40",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-05-17" },
 
+  // 22 May — Chaos Rising ETB x4 (individual sales)
   { id:"1747872000001", name:"Chaos Rising ETB", sub1:"", sub2:"", size:"", qty:"1",
     buyPrice:"49", sellPrice:"58", platformFee:"", shippingCost:"",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-05-22" },
@@ -54,38 +56,47 @@ const SEED_ITEMS = [
     buyPrice:"49", sellPrice:"57", platformFee:"", shippingCost:"",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-05-22" },
 
+  // 22 May — Chaos Rising Half Booster x2 (RRP £71 each, sold £76 each, costs £4 each)
   { id:"1747872000005", name:"Chaos Rising Half Booster", sub1:"", sub2:"", size:"", qty:"2",
     buyPrice:"71", sellPrice:"76", platformFee:"", shippingCost:"4",
     platform:"", status:"Sold", notes:"RRP £142 total, sold £152 total, costs £8", dateAdded:"2026-05-22" },
 
+  // 22 May — Chaos Rising Half Booster x5 (RRP £72 each, sold £80 each)
   { id:"1747872000006", name:"Chaos Rising Half Booster", sub1:"", sub2:"", size:"", qty:"5",
     buyPrice:"72", sellPrice:"80", platformFee:"", shippingCost:"",
     platform:"", status:"Sold", notes:"RRP £360 total, sold £400 total", dateAdded:"2026-05-22" },
 
+  // 28 May — Topps Chrome Arsenal #1
   { id:"1748390400001", name:"Topps Chrome Arsenal", sub1:"", sub2:"", size:"", qty:"1",
     buyPrice:"200", sellPrice:"302", platformFee:"", shippingCost:"10",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-05-28" },
 
+  // 28 May — Topps Chrome Arsenal #2
   { id:"1748390400002", name:"Topps Chrome Arsenal", sub1:"", sub2:"", size:"", qty:"1",
     buyPrice:"200", sellPrice:"250", platformFee:"", shippingCost:"",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-05-28" },
 
+  // 29 May — Supreme Wings Football Jersey
   { id:"1748476800001", name:"Supreme Wings Football Jersey", sub1:"", sub2:"", size:"", qty:"1",
     buyPrice:"138", sellPrice:"158", platformFee:"", shippingCost:"5",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-05-29" },
 
+  // 29 May — Travis Scott Jordan 1 Pink Muslin UK8
   { id:"1748476800002", name:"Travis Scott Jordan 1 Pink Muslin", sub1:"Pink Muslin", sub2:"", size:"8",
     buyPrice:"145", sellPrice:"370", platformFee:"", shippingCost:"59",
     platform:"", status:"Sold", notes:"UK 8", dateAdded:"2026-05-29" },
 
+  // 2 June — Fanatics x2 (RRP £135 each, sold £220 each, costs £10 each)
   { id:"1748822400001", name:"Fanatics", sub1:"", sub2:"", size:"", qty:"2",
     buyPrice:"135", sellPrice:"220", platformFee:"", shippingCost:"10",
     platform:"", status:"Sold", notes:"RRP £270 total, sold £440 total, costs £20", dateAdded:"2026-06-02" },
 
+  // 8 June — Nike Minds Black UK8
   { id:"1749340800001", name:"Nike Minds Black", sub1:"", sub2:"", size:"8",
     buyPrice:"80", sellPrice:"115", platformFee:"", shippingCost:"",
     platform:"", status:"Sold", notes:"UK 8", dateAdded:"2026-06-08" },
 
+  // 12 June — Palace / Patta drop (day costs £22 split across 6 items ≈ £3.67 each)
   { id:"1749686400001", name:"Palace Pewter Grey", sub1:"", sub2:"", size:"XXL",
     buyPrice:"", sellPrice:"85", platformFee:"", shippingCost:"3.67",
     platform:"", status:"Sold", notes:"Day costs £22 split", dateAdded:"2026-06-12" },
@@ -105,6 +116,7 @@ const SEED_ITEMS = [
     buyPrice:"", sellPrice:"143.56", platformFee:"", shippingCost:"3.67",
     platform:"", status:"Sold", notes:"Day costs £22 split", dateAdded:"2026-06-12" },
 
+  // 16 June — Patta Tech Fleece Large
   { id:"1749945600001", name:"Patta Tech Fleece", sub1:"", sub2:"", size:"L",
     buyPrice:"225", sellPrice:"346.37", platformFee:"", shippingCost:"",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-06-16" },
@@ -117,9 +129,9 @@ function load() {
     if (!raw) localStorage.setItem('rl_items', JSON.stringify(SEED_ITEMS))
     return {
       items,
-      category: localStorage.getItem('rl_category') || '💟 Sneakers',
+      category: localStorage.getItem('rl_category') || '👟 Sneakers',
     }
-  } catch { return { items: SEED_ITEMS, category: '💟 Sneakers' } }
+  } catch { return { items: SEED_ITEMS, category: '👟 Sneakers' } }
 }
 
 const inpStyle = {
@@ -207,6 +219,7 @@ export default function App() {
   return (
     <div style={{background:'#0a0a0f',color:'#e8e8f0',fontFamily:"-apple-system,'Inter','Helvetica Neue',sans-serif",minHeight:'100vh',paddingBottom:60}}>
 
+      {/* ── Header ── */}
       <header style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #1e1e2e',background:'#0d0d18',position:'sticky',top:0,zIndex:50}}>
         <div style={{position:'relative'}}>
           <button
@@ -245,6 +258,7 @@ export default function App() {
         </button>
       </header>
 
+      {/* ── Stats Bar ── */}
       <div style={{display:'flex',gap:10,padding:'14px 16px',borderBottom:'1px solid #1e1e2e',overflowX:'auto'}}>
         {[
           { lbl:'Total Profit', val:`£${totalProfit.toFixed(2)}`, color: totalProfit>=0?'#4caf50':'#f44' },
@@ -259,6 +273,7 @@ export default function App() {
         ))}
       </div>
 
+      {/* ── Filter Row ── */}
       <div style={{display:'flex',flexDirection:'column',gap:10,padding:'12px 16px',borderBottom:'1px solid #1e1e2e'}}>
         <input
           value={search} onChange={e=>setSearch(e.target.value)}
@@ -281,6 +296,7 @@ export default function App() {
         </div>
       </div>
 
+      {/* ── Item List ── */}
       <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:10}}>
         {filtered.length === 0 ? (
           <div style={{textAlign:'center',padding:'60px 20px',color:'#444',fontSize:15}}>
@@ -332,6 +348,7 @@ export default function App() {
         })}
       </div>
 
+      {/* ── Edit / Add Modal ── */}
       {editItem && (
         <EditModal
           item={editItem}
@@ -344,6 +361,7 @@ export default function App() {
         />
       )}
 
+      {/* ── Delete Modal ── */}
       {deleteId && (
         <div
           onClick={e => { if(e.target===e.currentTarget) setDeleteId(null) }}
@@ -364,6 +382,7 @@ export default function App() {
         </div>
       )}
 
+      {/* ── Toast ── */}
       <div style={{position:'fixed',bottom:24,left:'50%',transform:'translateX(-50%)',background:'#1e1e3e',border:'1px solid #4a4a8e',color:'#c084fc',padding:'10px 20px',borderRadius:20,fontSize:13,fontWeight:600,opacity:toast.show?1:0,transition:'opacity .3s',pointerEvents:'none',zIndex:999,whiteSpace:'nowrap'}}>
         {toast.msg}
       </div>
