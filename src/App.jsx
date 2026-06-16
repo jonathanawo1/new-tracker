@@ -9,7 +9,7 @@ const STATUS_COLORS = {
   "Pending": { bg:"#2a2a1a", accent:"#f59e0b", text:"#f59e0b" },
 }
 const CATEGORIES = {
-  "👟 Sneakers":      { emoji:"👟", label:"Sneakers",      sub1:"Colorway",         sub2:"SKU",          sizeType:"shoe"    },
+  "💟 Sneakers":      { emoji:"💟", label:"Sneakers",      sub1:"Colorway",         sub2:"SKU",          sizeType:"shoe"    },
   "🃏 Trading Cards": { emoji:"🃏", label:"Trading Cards", sub1:"Set / Edition",    sub2:"Card #",       sizeType:"none"    },
   "👕 Clothing":      { emoji:"👕", label:"Clothing",      sub1:"Color / Style",    sub2:"SKU",          sizeType:"apparel" },
   "🎮 Electronics":   { emoji:"🎮", label:"Electronics",   sub1:"Model / Variant",  sub2:"Serial / SKU", sizeType:"none"    },
@@ -17,11 +17,11 @@ const CATEGORIES = {
   "💿 Media":         { emoji:"💿", label:"Media",         sub1:"Edition / Format", sub2:"Catalog #",    sizeType:"none"    },
   "🛍️ General":      { emoji:"🛍️", label:"General",       sub1:"Variant",          sub2:"SKU",          sizeType:"none"    },
 }
-const SHOE_SIZES    = ["4","4.5","5","5.5","6","6.5","7","7.5","8","8.5","9","9.5","10","10.5","11","11.5","12","12.5","13","14","15"]
+const SHOE_SIZES    = ["3","3.5","4","4.5","5","5.5","6","6.5","7","7.5","8","8.5","9","9.5","10","10.5","11","11.5","12","12.5","13","14","15"]
 const APPAREL_SIZES = ["XS","S","M","L","XL","XXL","3XL"]
 
 const num = v => parseFloat(v) || 0
-const fmt = n => (!n && n !== 0) ? "—" : `$${Number(n).toFixed(2)}`
+const fmt = n => (!n && n !== 0) ? "—" : `£${Number(n).toFixed(2)}`
 const today = () => new Date().toISOString().slice(0, 10)
 
 function calcProfit(item) {
@@ -36,13 +36,90 @@ function newItem() {
     platform:"", status:"In Hand", notes:"", dateAdded: today() }
 }
 
+const SEED_ITEMS = [
+  { id:"1747440000001", name:"AP Swatch Ocho Negro", sub1:"", sub2:"", size:"", qty:"1",
+    buyPrice:"335", sellPrice:"1600", platformFee:"", shippingCost:"40",
+    platform:"", status:"Sold", notes:"", dateAdded:"2026-05-17" },
+
+  { id:"1747872000001", name:"Chaos Rising ETB", sub1:"", sub2:"", size:"", qty:"1",
+    buyPrice:"49", sellPrice:"58", platformFee:"", shippingCost:"",
+    platform:"", status:"Sold", notes:"", dateAdded:"2026-05-22" },
+  { id:"1747872000002", name:"Chaos Rising ETB", sub1:"", sub2:"", size:"", qty:"1",
+    buyPrice:"49", sellPrice:"55", platformFee:"", shippingCost:"",
+    platform:"", status:"Sold", notes:"", dateAdded:"2026-05-22" },
+  { id:"1747872000003", name:"Chaos Rising ETB", sub1:"", sub2:"", size:"", qty:"1",
+    buyPrice:"49", sellPrice:"60", platformFee:"", shippingCost:"",
+    platform:"", status:"Sold", notes:"", dateAdded:"2026-05-22" },
+  { id:"1747872000004", name:"Chaos Rising ETB", sub1:"", sub2:"", size:"", qty:"1",
+    buyPrice:"49", sellPrice:"57", platformFee:"", shippingCost:"",
+    platform:"", status:"Sold", notes:"", dateAdded:"2026-05-22" },
+
+  { id:"1747872000005", name:"Chaos Rising Half Booster", sub1:"", sub2:"", size:"", qty:"2",
+    buyPrice:"71", sellPrice:"76", platformFee:"", shippingCost:"4",
+    platform:"", status:"Sold", notes:"RRP £142 total, sold £152 total, costs £8", dateAdded:"2026-05-22" },
+
+  { id:"1747872000006", name:"Chaos Rising Half Booster", sub1:"", sub2:"", size:"", qty:"5",
+    buyPrice:"72", sellPrice:"80", platformFee:"", shippingCost:"",
+    platform:"", status:"Sold", notes:"RRP £360 total, sold £400 total", dateAdded:"2026-05-22" },
+
+  { id:"1748390400001", name:"Topps Chrome Arsenal", sub1:"", sub2:"", size:"", qty:"1",
+    buyPrice:"200", sellPrice:"302", platformFee:"", shippingCost:"10",
+    platform:"", status:"Sold", notes:"", dateAdded:"2026-05-28" },
+
+  { id:"1748390400002", name:"Topps Chrome Arsenal", sub1:"", sub2:"", size:"", qty:"1",
+    buyPrice:"200", sellPrice:"250", platformFee:"", shippingCost:"",
+    platform:"", status:"Sold", notes:"", dateAdded:"2026-05-28" },
+
+  { id:"1748476800001", name:"Supreme Wings Football Jersey", sub1:"", sub2:"", size:"", qty:"1",
+    buyPrice:"138", sellPrice:"158", platformFee:"", shippingCost:"5",
+    platform:"", status:"Sold", notes:"", dateAdded:"2026-05-29" },
+
+  { id:"1748476800002", name:"Travis Scott Jordan 1 Pink Muslin", sub1:"Pink Muslin", sub2:"", size:"8",
+    buyPrice:"145", sellPrice:"370", platformFee:"", shippingCost:"59",
+    platform:"", status:"Sold", notes:"UK 8", dateAdded:"2026-05-29" },
+
+  { id:"1748822400001", name:"Fanatics", sub1:"", sub2:"", size:"", qty:"2",
+    buyPrice:"135", sellPrice:"220", platformFee:"", shippingCost:"10",
+    platform:"", status:"Sold", notes:"RRP £270 total, sold £440 total, costs £20", dateAdded:"2026-06-02" },
+
+  { id:"1749340800001", name:"Nike Minds Black", sub1:"", sub2:"", size:"8",
+    buyPrice:"80", sellPrice:"115", platformFee:"", shippingCost:"",
+    platform:"", status:"Sold", notes:"UK 8", dateAdded:"2026-06-08" },
+
+  { id:"1749686400001", name:"Palace Pewter Grey", sub1:"", sub2:"", size:"XXL",
+    buyPrice:"", sellPrice:"85", platformFee:"", shippingCost:"3.67",
+    platform:"", status:"Sold", notes:"Day costs £22 split", dateAdded:"2026-06-12" },
+  { id:"1749686400002", name:"Palace Pewter Grey", sub1:"", sub2:"", size:"L",
+    buyPrice:"", sellPrice:"85", platformFee:"", shippingCost:"3.67",
+    platform:"", status:"Sold", notes:"Day costs £22 split", dateAdded:"2026-06-12" },
+  { id:"1749686400003", name:"Palace Grey Drill Top", sub1:"", sub2:"", size:"L",
+    buyPrice:"", sellPrice:"105", platformFee:"", shippingCost:"3.67",
+    platform:"", status:"Sold", notes:"Day costs £22 split", dateAdded:"2026-06-12" },
+  { id:"1749686400004", name:"Palace Pewter White", sub1:"", sub2:"", size:"L",
+    buyPrice:"", sellPrice:"85.86", platformFee:"", shippingCost:"3.67",
+    platform:"", status:"Sold", notes:"Day costs £22 split", dateAdded:"2026-06-12" },
+  { id:"1749686400005", name:"Palace Pewter Grey", sub1:"", sub2:"", size:"M",
+    buyPrice:"", sellPrice:"80", platformFee:"", shippingCost:"3.65",
+    platform:"", status:"Sold", notes:"Day costs £22 split", dateAdded:"2026-06-12" },
+  { id:"1749686400006", name:"Patta Exclusive Jersey", sub1:"", sub2:"", size:"L",
+    buyPrice:"", sellPrice:"143.56", platformFee:"", shippingCost:"3.67",
+    platform:"", status:"Sold", notes:"Day costs £22 split", dateAdded:"2026-06-12" },
+
+  { id:"1749945600001", name:"Patta Tech Fleece", sub1:"", sub2:"", size:"L",
+    buyPrice:"225", sellPrice:"346.37", platformFee:"", shippingCost:"",
+    platform:"", status:"Sold", notes:"", dateAdded:"2026-06-16" },
+]
+
 function load() {
   try {
+    const raw = localStorage.getItem('rl_items')
+    const items = raw ? JSON.parse(raw) : SEED_ITEMS
+    if (!raw) localStorage.setItem('rl_items', JSON.stringify(SEED_ITEMS))
     return {
-      items: JSON.parse(localStorage.getItem('rl_items') || '[]'),
-      category: localStorage.getItem('rl_category') || '👟 Sneakers',
+      items,
+      category: localStorage.getItem('rl_category') || '💟 Sneakers',
     }
-  } catch { return { items: [], category: '👟 Sneakers' } }
+  } catch { return { items: SEED_ITEMS, category: '💟 Sneakers' } }
 }
 
 const inpStyle = {
@@ -130,7 +207,6 @@ export default function App() {
   return (
     <div style={{background:'#0a0a0f',color:'#e8e8f0',fontFamily:"-apple-system,'Inter','Helvetica Neue',sans-serif",minHeight:'100vh',paddingBottom:60}}>
 
-      {/* ── Header ── */}
       <header style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #1e1e2e',background:'#0d0d18',position:'sticky',top:0,zIndex:50}}>
         <div style={{position:'relative'}}>
           <button
@@ -169,11 +245,10 @@ export default function App() {
         </button>
       </header>
 
-      {/* ── Stats Bar ── */}
       <div style={{display:'flex',gap:10,padding:'14px 16px',borderBottom:'1px solid #1e1e2e',overflowX:'auto'}}>
         {[
-          { lbl:'Total Profit', val:`$${totalProfit.toFixed(2)}`, color: totalProfit>=0?'#4caf50':'#f44' },
-          { lbl:'Invested',     val:`$${totalInvest.toFixed(2)}`, color:'#4a9eff' },
+          { lbl:'Total Profit', val:`£${totalProfit.toFixed(2)}`, color: totalProfit>=0?'#4caf50':'#f44' },
+          { lbl:'Invested',     val:`£${totalInvest.toFixed(2)}`, color:'#4a9eff' },
           { lbl:'Total Units',  val: totalUnits,                  color:'#c084fc' },
           { lbl:'Units Sold',   val: soldUnits,                   color:'#f59e0b' },
         ].map(s => (
@@ -184,7 +259,6 @@ export default function App() {
         ))}
       </div>
 
-      {/* ── Filter Row ── */}
       <div style={{display:'flex',flexDirection:'column',gap:10,padding:'12px 16px',borderBottom:'1px solid #1e1e2e'}}>
         <input
           value={search} onChange={e=>setSearch(e.target.value)}
@@ -207,7 +281,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── Item List ── */}
       <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:10}}>
         {filtered.length === 0 ? (
           <div style={{textAlign:'center',padding:'60px 20px',color:'#444',fontSize:15}}>
@@ -236,11 +309,12 @@ export default function App() {
                 {item.size && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#8b8bcc'}}>Size {item.size}</span>}
                 {num(item.qty)>1 && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#8b8bcc'}}>Qty {item.qty}</span>}
                 {item.platform && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#8b8bcc'}}>{item.platform}</span>}
+                {item.dateAdded && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#666'}}>{item.dateAdded}</span>}
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginTop:10,borderTop:'1px solid #1a1a28',paddingTop:10}}>
                 <div>
                   <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Buy</div>
-                  <div style={{fontSize:13,fontWeight:700}}>{fmt(item.buyPrice)}</div>
+                  <div style={{fontSize:13,fontWeight:700}}>{item.buyPrice ? fmt(item.buyPrice) : '—'}</div>
                 </div>
                 <div>
                   <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Sell</div>
@@ -258,7 +332,6 @@ export default function App() {
         })}
       </div>
 
-      {/* ── Edit / Add Modal ── */}
       {editItem && (
         <EditModal
           item={editItem}
@@ -271,7 +344,6 @@ export default function App() {
         />
       )}
 
-      {/* ── Delete Modal ── */}
       {deleteId && (
         <div
           onClick={e => { if(e.target===e.currentTarget) setDeleteId(null) }}
@@ -292,7 +364,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Toast ── */}
       <div style={{position:'fixed',bottom:24,left:'50%',transform:'translateX(-50%)',background:'#1e1e3e',border:'1px solid #4a4a8e',color:'#c084fc',padding:'10px 20px',borderRadius:20,fontSize:13,fontWeight:600,opacity:toast.show?1:0,transition:'opacity .3s',pointerEvents:'none',zIndex:999,whiteSpace:'nowrap'}}>
         {toast.msg}
       </div>
@@ -344,17 +415,17 @@ function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete }
                 {STATUSES.map(s=><option key={s}>{s}</option>)}
               </select>
             </Field>
-            <Field label="Buy Price ($)"><input type="number" step="0.01" value={form.buyPrice} onChange={e=>set('buyPrice',e.target.value)} placeholder="0.00" style={inpStyle} /></Field>
-            <Field label="Sell Price ($)"><input type="number" step="0.01" value={form.sellPrice} onChange={e=>set('sellPrice',e.target.value)} placeholder="0.00" style={inpStyle} /></Field>
+            <Field label="Buy Price (£)"><input type="number" step="0.01" value={form.buyPrice} onChange={e=>set('buyPrice',e.target.value)} placeholder="0.00" style={inpStyle} /></Field>
+            <Field label="Sell Price (£)"><input type="number" step="0.01" value={form.sellPrice} onChange={e=>set('sellPrice',e.target.value)} placeholder="0.00" style={inpStyle} /></Field>
             <Field label="Platform Fee (%)"><input type="number" step="0.1" value={form.platformFee} onChange={e=>set('platformFee',e.target.value)} placeholder="e.g. 9.5" style={inpStyle} /></Field>
-            <Field label="Shipping Cost ($)"><input type="number" step="0.01" value={form.shippingCost} onChange={e=>set('shippingCost',e.target.value)} placeholder="0.00" style={inpStyle} /></Field>
+            <Field label="Costs (£)"><input type="number" step="0.01" value={form.shippingCost} onChange={e=>set('shippingCost',e.target.value)} placeholder="0.00" style={inpStyle} /></Field>
             <Field label="Platform">
               <select value={form.platform} onChange={e=>set('platform',e.target.value)} style={inpStyle}>
                 <option value="">Select</option>
                 {PLATFORMS.map(p=><option key={p}>{p}</option>)}
               </select>
             </Field>
-            <Field label="Date Added"><input type="date" value={form.dateAdded} onChange={e=>set('dateAdded',e.target.value)} style={inpStyle} /></Field>
+            <Field label="Date"><input type="date" value={form.dateAdded} onChange={e=>set('dateAdded',e.target.value)} style={inpStyle} /></Field>
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:12}}>
             <label style={lblStyle}>Notes</label>
