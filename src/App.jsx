@@ -1,0 +1,385 @@
+import { useState, useRef } from 'react'
+
+const PLATFORMS = ["StockX","GOAT","eBay","Grailed","TCGPlayer","Depop","Poshmark","Facebook Marketplace","Local","Other"]
+const STATUSES  = ["In Hand","Listed","Sold","Pending"]
+const STATUS_COLORS = {
+  "In Hand": { bg:"#1a1a2e", accent:"#4a9eff", text:"#4a9eff" },
+  "Listed":  { bg:"#1a2a1a", accent:"#4caf50", text:"#4caf50" },
+  "Sold":    { bg:"#2a1a2e", accent:"#c084fc", text:"#c084fc" },
+  "Pending": { bg:"#2a2a1a", accent:"#f59e0b", text:"#f59e0b" },
+}
+const CATEGORIES = {
+  "💟 Sneakers":      { emoji:"💟", label:"Sneakers",      sub1:"Colorway",         sub2:"SKU",          sizeType:"shoe"    },
+  "🃏 Trading Cards": { emoji:"🃏", label:"Trading Cards", sub1:"Set / Edition",    sub2:"Card #",       sizeType:"none"    },
+  "👕 Clothing":      { emoji:"👕", label:"Clothing",      sub1:"Color / Style",    sub2:"SKU",          sizeType:"apparel" },
+  "🎮 Electronics":   { emoji:"🎮", label:"Electronics",   sub1:"Model / Variant",  sub2:"Serial / SKU", sizeType:"none"    },
+  "🧸 Collectibles":  { emoji:"🧸", label:"Collectibles",  sub1:"Variant / Color",  sub2:"Item #",       sizeType:"none"    },
+  "💿 Media":         { emoji:"💿", label:"Media",         sub1:"Edition / Format", sub2:"Catalog #",    sizeType:"none"    },
+  "🛍️ General":      { emoji:"🛍️", label:"General",       sub1:"Variant",          sub2:"SKU",          sizeType:"none"    },
+}
+const SHOE_SIZES    = ["4","4.5","5","5.5","6","6.5","7","7.5","8","8.5","9","9.5","10","10.5","11","11.5","12","12.5","13","14","15"]
+const APPAREL_SIZES = ["XS","S","M","L","XL","XXL","3XL"]
+
+const num = v => parseFloat(v) || 0
+const fmt = n => (!n && n !== 0) ? "—" : `$${Number(n).toFixed(2)}`
+const today = () => new Date().toISOString().slice(0, 10)
+
+function calcProfit(item) {
+  if (!item.sellPrice) return null
+  const gross = num(item.sellPrice)
+  return gross - num(item.buyPrice) - gross * (num(item.platformFee) / 100) - num(item.shippingCost)
+}
+
+function newItem() {
+  return { id: Date.now().toString(), name:"", sub1:"", sub2:"", size:"", qty:"1",
+    buyPrice:"", sellPrice:"", platformFee:"", shippingCost:"",
+    platform:"", status:"In Hand", notes:"", dateAdded: today() }
+}
+
+function load() {
+  try {
+    return {
+      items: JSON.parse(localStorage.getItem('rl_items') || '[]'),
+      category: localStorage.getItem('rl_category') || '💟 Sneakers',
+    }
+  } catch { return { items: [], category: '💟 Sneakers' } }
+}
+
+const inpStyle = {
+  background:'#111120', border:'1px solid #2a2a3e', borderRadius:7,
+  color:'#e8e8f0', padding:'9px 12px', fontSize:14, outline:'none', width:'100%',
+}
+const lblStyle = {
+  fontSize:10, fontWeight:700, color:'#666', letterSpacing:'.07em', textTransform:'uppercase',
+}
+
+export default function App() {
+  const stored = load()
+  const [items, setItems]           = useState(stored.items)
+  const [category, setCategory]     = useState(stored.category)
+  const [filterStatus, setFilter]   = useState('All')
+  const [search, setSearch]         = useState('')
+  const [catOpen, setCatOpen]       = useState(false)
+  const [editItem, setEditItem]     = useState(null)
+  const [isEditing, setIsEditing]   = useState(false)
+  const [deleteId, setDeleteId]     = useState(null)
+  const [toast, setToast]           = useState({ msg:'', show:false })
+  const toastRef = useRef(null)
+
+  const cat = CATEGORIES[category] || CATEGORIES["🛍️ General"]
+
+  function persist(nextItems, nextCat) {
+    localStorage.setItem('rl_items', JSON.stringify(nextItems))
+    localStorage.setItem('rl_category', nextCat)
+  }
+
+  function updateItems(fn) {
+    setItems(prev => { const next = fn(prev); persist(next, category); return next })
+  }
+
+  function updateCategory(key) {
+    setCategory(key)
+    persist(items, key)
+  }
+
+  function showToast(msg) {
+    clearTimeout(toastRef.current)
+    setToast({ msg, show:true })
+    toastRef.current = setTimeout(() => setToast(t => ({...t, show:false})), 2200)
+  }
+
+  function getSizeOpts() {
+    if (cat.sizeType === 'shoe')    return SHOE_SIZES
+    if (cat.sizeType === 'apparel') return APPAREL_SIZES
+    return null
+  }
+
+  const sold        = items.filter(i => i.status === 'Sold')
+  const totalProfit = sold.reduce((s,i) => s + (calcProfit(i) ?? 0) * num(i.qty||1), 0)
+  const totalInvest = items.reduce((s,i) => s + num(i.buyPrice) * num(i.qty||1), 0)
+  const totalUnits  = items.reduce((s,i) => s + num(i.qty||1), 0)
+  const soldUnits   = sold.reduce((s,i) => s + num(i.qty||1), 0)
+
+  const filtered = items.filter(i => {
+    const ms = filterStatus === 'All' || i.status === filterStatus
+    const mq = [i.name,i.sub1,i.sub2,i.platform].join(' ').toLowerCase().includes(search.toLowerCase())
+    return ms && mq
+  })
+
+  function openAdd()     { setEditItem(newItem()); setIsEditing(false) }
+  function openEdit(id)  { const it = items.find(i=>i.id===id); if(it){setEditItem({...it});setIsEditing(true)} }
+  function closeEdit()   { setEditItem(null) }
+
+  function saveItem(updated) {
+    if (isEditing) {
+      updateItems(prev => prev.map(i => i.id === updated.id ? updated : i))
+      showToast('✅ Item updated')
+    } else {
+      updateItems(prev => [updated, ...prev])
+      showToast('✅ Item added')
+    }
+    closeEdit()
+  }
+
+  function deleteItem() {
+    updateItems(prev => prev.filter(i => i.id !== deleteId))
+    setDeleteId(null)
+    showToast('🗑️ Item deleted')
+  }
+
+  return (
+    <div style={{background:'#0a0a0f',color:'#e8e8f0',fontFamily:"-apple-system,'Inter','Helvetica Neue',sans-serif",minHeight:'100vh',paddingBottom:60}}>
+
+      <header style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #1e1e2e',background:'#0d0d18',position:'sticky',top:0,zIndex:50}}>
+        <div style={{position:'relative'}}>
+          <button
+            onClick={() => setCatOpen(v=>!v)}
+            style={{display:'flex',alignItems:'center',gap:12,background:'none',border:'none',color:'inherit',padding:0,cursor:'pointer',WebkitTapHighlightColor:'transparent'}}
+          >
+            <span style={{fontSize:30,lineHeight:1}}>{cat.emoji}</span>
+            <div>
+              <div style={{fontSize:18,fontWeight:800,letterSpacing:'.12em',color:'#fff'}}>RESELL LEDGER</div>
+              <div style={{fontSize:11,color:'#666',marginTop:2}}>
+                {cat.label} Tracker <span style={{color:'#444'}}>&middot; tap to change</span>
+              </div>
+            </div>
+            <span style={{color:'#444',fontSize:13,marginLeft:4}}>&#9662;</span>
+          </button>
+
+          {catOpen && (
+            <>
+              <div onClick={() => setCatOpen(false)} style={{position:'fixed',inset:0,zIndex:290}} />
+              <div style={{position:'absolute',top:'calc(100% + 4px)',left:0,zIndex:300,background:'#13131f',border:'1px solid #2a2a3e',borderRadius:12,padding:8,minWidth:200,boxShadow:'0 8px 32px rgba(0,0,0,.7)'}}>
+                {Object.entries(CATEGORIES).map(([key, val]) => (
+                  <button key={key}
+                    onClick={() => { updateCategory(key); setCatOpen(false) }}
+                    style={{display:'flex',alignItems:'center',gap:10,background:category===key?'#1e1e3e':'transparent',border:'none',color:category===key?'#fff':'#bbb',padding:'9px 14px',borderRadius:8,fontSize:14,fontWeight:600,width:'100%',cursor:'pointer',textAlign:'left'}}>
+                    <span>{val.emoji}</span><span>{val.label}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+        <button
+          onClick={openAdd}
+          style={{background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'#fff',border:'none',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
+          + Add
+        </button>
+      </header>
+
+      <div style={{display:'flex',gap:10,padding:'14px 16px',borderBottom:'1px solid #1e1e2e',overflowX:'auto'}}>
+        {[
+          { lbl:'Total Profit', val:`$${totalProfit.toFixed(2)}`, color: totalProfit>=0?'#4caf50':'#f44' },
+          { lbl:'Invested',     val:`$${totalInvest.toFixed(2)}`, color:'#4a9eff' },
+          { lbl:'Total Units',  val: totalUnits,                  color:'#c084fc' },
+          { lbl:'Units Sold',   val: soldUnits,                   color:'#f59e0b' },
+        ].map(s => (
+          <div key={s.lbl} style={{flex:'0 0 auto',background:'#111120',border:'1px solid #1e1e2e',borderRadius:10,padding:'12px 16px',minWidth:110}}>
+            <div style={{fontSize:20,fontWeight:800,lineHeight:1,color:s.color}}>{s.val}</div>
+            <div style={{fontSize:10,color:'#666',marginTop:5,letterSpacing:'.06em',textTransform:'uppercase'}}>{s.lbl}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{display:'flex',flexDirection:'column',gap:10,padding:'12px 16px',borderBottom:'1px solid #1e1e2e'}}>
+        <input
+          value={search} onChange={e=>setSearch(e.target.value)}
+          type="search" placeholder="Search items…"
+          style={{...inpStyle,boxSizing:'border-box'}} />
+        <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
+          {['All',...STATUSES].map(st => {
+            const sc = STATUS_COLORS[st]
+            const active = filterStatus === st
+            return (
+              <button key={st} onClick={() => setFilter(st)}
+                style={{background: active ? (st==='All'?'#6366f1':sc.accent) : 'transparent',
+                  border:`1px solid ${st==='All'?(active?'#6366f1':'#2a2a3e'):sc.accent}`,
+                  color: active?'#fff':(st==='All'?'#666':sc.text),
+                  borderRadius:20,padding:'5px 13px',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+                {st}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:10}}>
+        {filtered.length === 0 ? (
+          <div style={{textAlign:'center',padding:'60px 20px',color:'#444',fontSize:15}}>
+            {items.length === 0 ? 'No items yet — add your first flip!' : 'No items match your filters.'}
+          </div>
+        ) : filtered.map(item => {
+          const profit = calcProfit(item)
+          const totalP = profit != null ? profit * num(item.qty||1) : null
+          const sc = STATUS_COLORS[item.status] || STATUS_COLORS['In Hand']
+          const subLine = [item.sub1,item.sub2].filter(Boolean).join(' · ')
+          return (
+            <div key={item.id} style={{background:'#111120',border:'1px solid #1e1e2e',borderRadius:12,padding:'14px 16px'}}>
+              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8}}>
+                <div>
+                  <div style={{fontWeight:700,color:'#f0f0ff',fontSize:14,lineHeight:1.3}}>{item.name}</div>
+                  {subLine && <div style={{color:'#555',fontSize:11,marginTop:3}}>{subLine}</div>}
+                  {item.notes && <div style={{color:'#6366f1',fontSize:11,marginTop:3,fontStyle:'italic'}}>{item.notes}</div>}
+                </div>
+                <div style={{display:'flex',gap:6,flexShrink:0}}>
+                  <button onClick={()=>openEdit(item.id)} style={{background:'transparent',border:'1px solid #2a2a3e',borderRadius:6,padding:'5px 8px',fontSize:13,cursor:'pointer'}}>{"✏️"}</button>
+                  <button onClick={()=>setDeleteId(item.id)} style={{background:'transparent',border:'1px solid #2a1a1a',borderRadius:6,padding:'5px 8px',fontSize:13,cursor:'pointer'}}>{"🗑️"}</button>
+                </div>
+              </div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>
+                <span style={{background:sc.bg,color:sc.text,border:`1px solid ${sc.accent}`,borderRadius:20,padding:'3px 10px',fontSize:11,fontWeight:700,letterSpacing:'.03em'}}>{item.status}</span>
+                {item.size && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#8b8bcc'}}>Size {item.size}</span>}
+                {num(item.qty)>1 && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#8b8bcc'}}>Qty {item.qty}</span>}
+                {item.platform && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#8b8bcc'}}>{item.platform}</span>}
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginTop:10,borderTop:'1px solid #1a1a28',paddingTop:10}}>
+                <div>
+                  <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Buy</div>
+                  <div style={{fontSize:13,fontWeight:700}}>{fmt(item.buyPrice)}</div>
+                </div>
+                <div>
+                  <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Sell</div>
+                  <div style={{fontSize:13,fontWeight:700}}>{fmt(item.sellPrice)}</div>
+                </div>
+                <div>
+                  <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Profit</div>
+                  <div style={{fontSize:13,fontWeight:700,color: totalP==null?'#555':totalP>=0?'#4caf50':'#f44336'}}>
+                    {totalP==null ? '—' : `${totalP>=0?'+':''}${fmt(totalP)}`}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {editItem && (
+        <EditModal
+          item={editItem}
+          isEditing={isEditing}
+          cat={cat}
+          sizeOpts={getSizeOpts()}
+          onSave={saveItem}
+          onClose={closeEdit}
+          onDelete={id => { closeEdit(); setDeleteId(id) }}
+        />
+      )}
+
+      {deleteId && (
+        <div
+          onClick={e => { if(e.target===e.currentTarget) setDeleteId(null) }}
+          style={{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',zIndex:200,display:'flex',padding:16,alignItems:'flex-end',justifyContent:'center'}}>
+          <div style={{background:'#0f0f1e',border:'1px solid #2a2a3e',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:540,display:'flex',flexDirection:'column'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'18px 20px 14px',borderBottom:'1px solid #1e1e2e'}}>
+              <span style={{fontSize:16,fontWeight:800,color:'#fff'}}>Delete Item?</span>
+              <button onClick={()=>setDeleteId(null)} style={{background:'transparent',border:'none',color:'#555',fontSize:20,cursor:'pointer',lineHeight:1}}>&#x2715;</button>
+            </div>
+            <div style={{padding:'16px 20px',color:'#aaa',fontSize:14,lineHeight:1.6}}>
+              This will permanently remove this item. This can&#39;t be undone.
+            </div>
+            <div style={{display:'flex',justifyContent:'flex-end',gap:8,padding:'14px 20px',borderTop:'1px solid #1e1e2e'}}>
+              <button onClick={()=>setDeleteId(null)} style={{background:'transparent',border:'1px solid #2a2a3e',color:'#888',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Cancel</button>
+              <button onClick={deleteItem} style={{background:'linear-gradient(135deg,#ef4444,#b91c1c)',color:'#fff',border:'none',borderRadius:8,padding:'9px 22px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{position:'fixed',bottom:24,left:'50%',transform:'translateX(-50%)',background:'#1e1e3e',border:'1px solid #4a4a8e',color:'#c084fc',padding:'10px 20px',borderRadius:20,fontSize:13,fontWeight:600,opacity:toast.show?1:0,transition:'opacity .3s',pointerEvents:'none',zIndex:999,whiteSpace:'nowrap'}}>
+        {toast.msg}
+      </div>
+    </div>
+  )
+}
+
+function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete }) {
+  const [form, setForm] = useState({...item})
+  const set = (k, v) => setForm(f => ({...f, [k]: v}))
+  const profit = calcProfit(form)
+
+  function handleSave() {
+    if (!form.name.trim()) { alert('Please enter an item name.'); return }
+    onSave(form)
+  }
+
+  return (
+    <div
+      onClick={e => { if(e.target===e.currentTarget) onClose() }}
+      style={{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',zIndex:200,display:'flex',padding:16,alignItems:'flex-end',justifyContent:'center'}}>
+      <div style={{background:'#0f0f1e',border:'1px solid #2a2a3e',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:540,maxHeight:'92vh',display:'flex',flexDirection:'column'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'18px 20px 14px',borderBottom:'1px solid #1e1e2e',flexShrink:0}}>
+          <span style={{fontSize:16,fontWeight:800,color:'#fff'}}>{isEditing ? 'Edit Item' : `Add ${cat.label} Item`}</span>
+          <button onClick={onClose} style={{background:'transparent',border:'none',color:'#555',fontSize:20,cursor:'pointer',lineHeight:1}}>&#x2715;</button>
+        </div>
+
+        <div style={{padding:'16px 20px',overflowY:'auto',flex:1}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px 12px',marginBottom:12}}>
+            <div style={{gridColumn:'1/-1',display:'flex',flexDirection:'column',gap:4}}>
+              <label style={lblStyle}>Name *</label>
+              <input value={form.name} onChange={e=>set('name',e.target.value)} placeholder="Item name" style={inpStyle} />
+            </div>
+            <Field label={cat.sub1}><input value={form.sub1} onChange={e=>set('sub1',e.target.value)} placeholder={cat.sub1} style={inpStyle} /></Field>
+            <Field label={cat.sub2}><input value={form.sub2} onChange={e=>set('sub2',e.target.value)} placeholder={cat.sub2} style={inpStyle} /></Field>
+            <Field label={sizeOpts ? 'Size' : 'Size / Variant'}>
+              {sizeOpts ? (
+                <select value={form.size} onChange={e=>set('size',e.target.value)} style={inpStyle}>
+                  <option value="">Select</option>
+                  {sizeOpts.map(s=><option key={s}>{s}</option>)}
+                </select>
+              ) : (
+                <input value={form.size} onChange={e=>set('size',e.target.value)} placeholder="Optional" style={inpStyle} />
+              )}
+            </Field>
+            <Field label="Quantity"><input type="number" min="1" value={form.qty} onChange={e=>set('qty',e.target.value)} style={inpStyle} /></Field>
+            <Field label="Status">
+              <select value={form.status} onChange={e=>set('status',e.target.value)} style={inpStyle}>
+                {STATUSES.map(s=><option key={s}>{s}</option>)}
+              </select>
+            </Field>
+            <Field label="Buy Price ($)"><input type="number" step="0.01" value={form.buyPrice} onChange={e=>set('buyPrice',e.target.value)} placeholder="0.00" style={inpStyle} /></Field>
+            <Field label="Sell Price ($)"><input type="number" step="0.01" value={form.sellPrice} onChange={e=>set('sellPrice',e.target.value)} placeholder="0.00" style={inpStyle} /></Field>
+            <Field label="Platform Fee (%)"><input type="number" step="0.1" value={form.platformFee} onChange={e=>set('platformFee',e.target.value)} placeholder="e.g. 9.5" style={inpStyle} /></Field>
+            <Field label="Shipping Cost ($)"><input type="number" step="0.01" value={form.shippingCost} onChange={e=>set('shippingCost',e.target.value)} placeholder="0.00" style={inpStyle} /></Field>
+            <Field label="Platform">
+              <select value={form.platform} onChange={e=>set('platform',e.target.value)} style={inpStyle}>
+                <option value="">Select</option>
+                {PLATFORMS.map(p=><option key={p}>{p}</option>)}
+              </select>
+            </Field>
+            <Field label="Date Added"><input type="date" value={form.dateAdded} onChange={e=>set('dateAdded',e.target.value)} style={inpStyle} /></Field>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:12}}>
+            <label style={lblStyle}>Notes</label>
+            <textarea value={form.notes} onChange={e=>set('notes',e.target.value)} rows={2} placeholder="Any notes…" style={{...inpStyle,resize:'vertical'}} />
+          </div>
+          {profit != null && form.buyPrice && form.sellPrice && (
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:'#0a0a18',border:'1px solid #2a2a3e',borderRadius:10,padding:'12px 16px',marginTop:8}}>
+              <span style={{fontSize:11,color:'#666',fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase'}}>Est. Profit / unit</span>
+              <span style={{fontSize:18,fontWeight:800,color:profit>=0?'#4caf50':'#f44336'}}>{profit>=0?'+':''}{fmt(profit)}</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{display:'flex',justifyContent:'flex-end',gap:8,padding:'14px 20px',borderTop:'1px solid #1e1e2e',flexShrink:0,alignItems:'center'}}>
+          {isEditing && (
+            <button onClick={()=>onDelete(form.id)} style={{background:'transparent',border:'1px solid #4a1a1a',color:'#f44',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer',marginRight:'auto'}}>Delete Item</button>
+          )}
+          <button onClick={onClose} style={{background:'transparent',border:'1px solid #2a2a3e',color:'#888',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Cancel</button>
+          <button onClick={handleSave} style={{background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'#fff',border:'none',borderRadius:8,padding:'9px 22px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+            {isEditing ? 'Save Changes' : 'Add Item'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:4}}>
+      <label style={lblStyle}>{label}</label>
+      {children}
+    </div>
+  )
+}
