@@ -9,7 +9,7 @@ const STATUS_COLORS = {
   "Pending": { bg:"#2a2a1a", accent:"#f59e0b", text:"#f59e0b" },
 }
 const CATEGORIES = {
-  "💟 Sneakers":      { emoji:"💟", label:"Sneakers",      sub1:"Colorway",         sub2:"SKU",          sizeType:"shoe"    },
+  "👟 Sneakers":      { emoji:"👟", label:"Sneakers",      sub1:"Colorway",         sub2:"SKU",          sizeType:"shoe"    },
   "🃏 Trading Cards": { emoji:"🃏", label:"Trading Cards", sub1:"Set / Edition",    sub2:"Card #",       sizeType:"none"    },
   "👕 Clothing":      { emoji:"👕", label:"Clothing",      sub1:"Color / Style",    sub2:"SKU",          sizeType:"apparel" },
   "🎮 Electronics":   { emoji:"🎮", label:"Electronics",   sub1:"Model / Variant",  sub2:"Serial / SKU", sizeType:"none"    },
@@ -40,9 +40,9 @@ function load() {
   try {
     return {
       items: JSON.parse(localStorage.getItem('rl_items') || '[]'),
-      category: localStorage.getItem('rl_category') || '💟 Sneakers',
+      category: localStorage.getItem('rl_category') || '👟 Sneakers',
     }
-  } catch { return { items: [], category: '💟 Sneakers' } }
+  } catch { return { items: [], category: '👟 Sneakers' } }
 }
 
 const inpStyle = {
@@ -130,6 +130,7 @@ export default function App() {
   return (
     <div style={{background:'#0a0a0f',color:'#e8e8f0',fontFamily:"-apple-system,'Inter','Helvetica Neue',sans-serif",minHeight:'100vh',paddingBottom:60}}>
 
+      {/* ── Header ── */}
       <header style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #1e1e2e',background:'#0d0d18',position:'sticky',top:0,zIndex:50}}>
         <div style={{position:'relative'}}>
           <button
@@ -140,10 +141,10 @@ export default function App() {
             <div>
               <div style={{fontSize:18,fontWeight:800,letterSpacing:'.12em',color:'#fff'}}>RESELL LEDGER</div>
               <div style={{fontSize:11,color:'#666',marginTop:2}}>
-                {cat.label} Tracker <span style={{color:'#444'}}>&middot; tap to change</span>
+                {cat.label} Tracker <span style={{color:'#444'}}>· tap to change</span>
               </div>
             </div>
-            <span style={{color:'#444',fontSize:13,marginLeft:4}}>&#9662;</span>
+            <span style={{color:'#444',fontSize:13,marginLeft:4}}>▾</span>
           </button>
 
           {catOpen && (
@@ -168,6 +169,7 @@ export default function App() {
         </button>
       </header>
 
+      {/* ── Stats Bar ── */}
       <div style={{display:'flex',gap:10,padding:'14px 16px',borderBottom:'1px solid #1e1e2e',overflowX:'auto'}}>
         {[
           { lbl:'Total Profit', val:`$${totalProfit.toFixed(2)}`, color: totalProfit>=0?'#4caf50':'#f44' },
@@ -182,6 +184,7 @@ export default function App() {
         ))}
       </div>
 
+      {/* ── Filter Row ── */}
       <div style={{display:'flex',flexDirection:'column',gap:10,padding:'12px 16px',borderBottom:'1px solid #1e1e2e'}}>
         <input
           value={search} onChange={e=>setSearch(e.target.value)}
@@ -204,6 +207,7 @@ export default function App() {
         </div>
       </div>
 
+      {/* ── Item List ── */}
       <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:10}}>
         {filtered.length === 0 ? (
           <div style={{textAlign:'center',padding:'60px 20px',color:'#444',fontSize:15}}>
@@ -223,8 +227,8 @@ export default function App() {
                   {item.notes && <div style={{color:'#6366f1',fontSize:11,marginTop:3,fontStyle:'italic'}}>{item.notes}</div>}
                 </div>
                 <div style={{display:'flex',gap:6,flexShrink:0}}>
-                  <button onClick={()=>openEdit(item.id)} style={{background:'transparent',border:'1px solid #2a2a3e',borderRadius:6,padding:'5px 8px',fontSize:13,cursor:'pointer'}}>{"✏️"}</button>
-                  <button onClick={()=>setDeleteId(item.id)} style={{background:'transparent',border:'1px solid #2a1a1a',borderRadius:6,padding:'5px 8px',fontSize:13,cursor:'pointer'}}>{"🗑️"}</button>
+                  <button onClick={()=>openEdit(item.id)} style={{background:'transparent',border:'1px solid #2a2a3e',borderRadius:6,padding:'5px 8px',fontSize:13,cursor:'pointer'}}>✏️</button>
+                  <button onClick={()=>setDeleteId(item.id)} style={{background:'transparent',border:'1px solid #2a1a1a',borderRadius:6,padding:'5px 8px',fontSize:13,cursor:'pointer'}}>🗑️</button>
                 </div>
               </div>
               <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>
@@ -254,6 +258,7 @@ export default function App() {
         })}
       </div>
 
+      {/* ── Edit / Add Modal ── */}
       {editItem && (
         <EditModal
           item={editItem}
@@ -266,6 +271,7 @@ export default function App() {
         />
       )}
 
+      {/* ── Delete Modal ── */}
       {deleteId && (
         <div
           onClick={e => { if(e.target===e.currentTarget) setDeleteId(null) }}
@@ -273,10 +279,10 @@ export default function App() {
           <div style={{background:'#0f0f1e',border:'1px solid #2a2a3e',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:540,display:'flex',flexDirection:'column'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'18px 20px 14px',borderBottom:'1px solid #1e1e2e'}}>
               <span style={{fontSize:16,fontWeight:800,color:'#fff'}}>Delete Item?</span>
-              <button onClick={()=>setDeleteId(null)} style={{background:'transparent',border:'none',color:'#555',fontSize:20,cursor:'pointer',lineHeight:1}}>&#x2715;</button>
+              <button onClick={()=>setDeleteId(null)} style={{background:'transparent',border:'none',color:'#555',fontSize:20,cursor:'pointer',lineHeight:1}}>✕</button>
             </div>
             <div style={{padding:'16px 20px',color:'#aaa',fontSize:14,lineHeight:1.6}}>
-              This will permanently remove this item. This can&#39;t be undone.
+              This will permanently remove this item. This can't be undone.
             </div>
             <div style={{display:'flex',justifyContent:'flex-end',gap:8,padding:'14px 20px',borderTop:'1px solid #1e1e2e'}}>
               <button onClick={()=>setDeleteId(null)} style={{background:'transparent',border:'1px solid #2a2a3e',color:'#888',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Cancel</button>
@@ -286,6 +292,7 @@ export default function App() {
         </div>
       )}
 
+      {/* ── Toast ── */}
       <div style={{position:'fixed',bottom:24,left:'50%',transform:'translateX(-50%)',background:'#1e1e3e',border:'1px solid #4a4a8e',color:'#c084fc',padding:'10px 20px',borderRadius:20,fontSize:13,fontWeight:600,opacity:toast.show?1:0,transition:'opacity .3s',pointerEvents:'none',zIndex:999,whiteSpace:'nowrap'}}>
         {toast.msg}
       </div>
@@ -310,7 +317,7 @@ function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete }
       <div style={{background:'#0f0f1e',border:'1px solid #2a2a3e',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:540,maxHeight:'92vh',display:'flex',flexDirection:'column'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'18px 20px 14px',borderBottom:'1px solid #1e1e2e',flexShrink:0}}>
           <span style={{fontSize:16,fontWeight:800,color:'#fff'}}>{isEditing ? 'Edit Item' : `Add ${cat.label} Item`}</span>
-          <button onClick={onClose} style={{background:'transparent',border:'none',color:'#555',fontSize:20,cursor:'pointer',lineHeight:1}}>&#x2715;</button>
+          <button onClick={onClose} style={{background:'transparent',border:'none',color:'#555',fontSize:20,cursor:'pointer',lineHeight:1}}>✕</button>
         </div>
 
         <div style={{padding:'16px 20px',overflowY:'auto',flex:1}}>
