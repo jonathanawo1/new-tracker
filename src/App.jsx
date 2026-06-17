@@ -426,12 +426,14 @@ export default function App() {
           </div>
         ) : (() => {
           const sorted = [...filtered].sort((a,b) => (b.dateAdded||'').localeCompare(a.dateAdded||''))
-          // pre-compute profit per date
+          // pre-compute profit and spend per date
           const profitByDate = {}
+          const spendByDate = {}
           for (const item of sorted) {
             const d = item.dateAdded || ''
             const p = calcProfit(item)
             if (p != null) profitByDate[d] = (profitByDate[d] || 0) + p * num(item.qty||1)
+            if (item.buyPrice) spendByDate[d] = (spendByDate[d] || 0) + num(item.buyPrice) * num(item.qty||1)
           }
 
           const groups = []
@@ -449,6 +451,11 @@ export default function App() {
                 <div key={'d-'+g.date+idx} style={{display:'flex',alignItems:'center',gap:10,marginTop: idx===0?0:6}}>
                   <div style={{flex:1,height:1,background:'#1e1e2e'}} />
                   <span style={{fontSize:11,fontWeight:700,color:'#444',letterSpacing:'.06em',textTransform:'uppercase',whiteSpace:'nowrap'}}>{label}</span>
+                  {spendByDate[g.date] != null && (
+                    <span style={{fontSize:11,fontWeight:700,color:'#4a9eff',whiteSpace:'nowrap'}}>
+                      spent {fmt(spendByDate[g.date])}
+                    </span>
+                  )}
                   {dp != null && (
                     <span style={{fontSize:11,fontWeight:700,color:dp>=0?'#4caf50':'#f44336',whiteSpace:'nowrap'}}>
                       {dp>=0?'+':''}{fmt(dp)}
