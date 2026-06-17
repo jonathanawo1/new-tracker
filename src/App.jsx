@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { initializeApp, getApps, getApp } from 'firebase/app'
-import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore'
+import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore'
 
 const PLATFORMS = ["StockX","GOAT","eBay","Grailed","TCGPlayer","Depop","Poshmark","Facebook Marketplace","Local","Other"]
 const STATUSES  = ["In Hand","Listed","Sold","Pending"]
@@ -184,6 +184,24 @@ export default function App() {
     const syncId = getSyncId()
     if (!db || !syncId) return
     const ref = doc(db, 'ledgers', syncId)
+
+    // Immediately pull on load so new devices get data right away
+    getDoc(ref).then(snap => {
+      if (snap.exists()) {
+        const data = snap.data()
+        if (Array.isArray(data.items) && data.items.length > 0) {
+          setItems(data.items)
+          localStorage.setItem('rl_items', JSON.stringify(data.items))
+        }
+        if (data.category) {
+          setCategory(data.category)
+          localStorage.setItem('rl_category', data.category)
+        }
+        setCloudStatus('synced')
+      }
+    }).catch(() => setCloudStatus('error'))
+
+    // Then keep listening for real-time updates
     const unsub = onSnapshot(ref, snap => {
       if (skipNext.current) { skipNext.current = false; return }
       if (snap.exists()) {
@@ -201,6 +219,25 @@ export default function App() {
     }, () => setCloudStatus('error'))
     return unsub
   }, [])
+
+  async function pullFromCloud() {
+    const db = getDb()
+    const syncId = getSyncId()
+    if (!db || !syncId) return
+    const snap = await getDoc(doc(db, 'ledgers', syncId))
+    if (snap.exists()) {
+      const data = snap.data()
+      if (Array.isArray(data.items) && data.items.length > 0) {
+        setItems(data.items)
+        localStorage.setItem('rl_items', JSON.stringify(data.items))
+      }
+      if (data.category) {
+        setCategory(data.category)
+        localStorage.setItem('rl_category', data.category)
+      }
+      setCloudStatus('synced')
+    }
+  }
 
   async function pushToCloud(nextItems, nextCat) {
     const db = getDb()
@@ -462,7 +499,8 @@ export default function App() {
       {settingsOpen && (
         <SettingsModal
           onClose={() => setSettingsOpen(false)}
-          onSyncNow={() => pushToCloud(itemsRef.current, categoryRef.current)} />
+          onPush={() => pushToCloud(itemsRef.current, categoryRef.current)}
+          onPull={pullFromCloud} />
       )}
 
       {emailPrompt && (
@@ -628,7 +666,7 @@ function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete, 
 }
 
 // ── SettingsModal ─────────────────────────────────────────────────────────────
-function SettingsModal({ onClose, onSyncNow }) {
+function SettingsModal({ onClose, onPush, onPull }) {
   const [apiKey,  setApiKey]  = useState(localStorage.getItem('rl_anthropic_key') || '')
   const [email,   setEmail]   = useState(localStorage.getItem('rl_email') || '')
   const [syncId,  setSyncId]  = useState(localStorage.getItem('rl_sync_id') || '')
@@ -646,13 +684,13 @@ function SettingsModal({ onClose, onSyncNow }) {
     }
   }
 
-  async function handleSyncNow() {
-    setSyncMsg('Syncing…')
+  async function handleAction(fn, msg) {
+    setSyncMsg(msg + '…')
     try {
-      await onSyncNow()
-      setSyncMsg('Synced!')
+      await fn()
+      setSyncMsg(msg === 'Pushing' ? 'Pushed!' : 'Pulled!')
     } catch {
-      setSyncMsg('Sync failed')
+      setSyncMsg('Failed')
     }
     setTimeout(() => setSyncMsg(''), 2500)
   }
@@ -694,10 +732,19 @@ function SettingsModal({ onClose, onSyncNow }) {
               <div style={{fontSize:11,color:'#555',marginTop:4}}>Use the same Sync ID on every device. Keep it private — anyone with this ID can read your data.</div>
             </Field>
             {syncId && (
-              <button onClick={handleSyncNow}
-                style={{marginTop:10,background:'#1a2a1a',border:'1px solid #4caf50',color:'#4caf50',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer',width:'100%'}}>
-                {syncMsg || 'Push to Cloud Now'}
-              </button>
+              <div style={{display:'flex',gap:8,marginTop:10}}>
+                <button onClick={() => handleAction(onPull, 'Pulling')}
+                  style={{flex:1,background:'#1a1a2e',border:'1px solid #4a9eff',color:'#4a9eff',borderRadius:8,padding:'9px 12px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+                  {syncMsg?.includes('Pull') ? syncMsg : '⬇ Pull from Cloud'}
+                </button>
+                <button onClick={() => handleAction(onPush, 'Pushing')}
+                  style={{flex:1,background:'#1a2a1a',border:'1px solid #4caf50',color:'#4caf50',borderRadius:8,padding:'9px 12px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+                  {syncMsg?.includes('Push') ? syncMsg : '⬆ Push to Cloud'}
+                </button>
+              </div>
+            )}
+            {syncMsg && !syncMsg.includes('Pull') && !syncMsg.includes('Push') && (
+              <div style={{marginTop:8,fontSize:12,color:'#4caf50',textAlign:'center'}}>{syncMsg}</div>
             )}
           </div>
         </div>
