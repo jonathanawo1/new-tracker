@@ -36,11 +36,19 @@ function newItem() {
     platform:"", status:"In Hand", notes:"", dateAdded: today() }
 }
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(r.result.split(',')[1])
+    r.onerror = reject
+    r.readAsDataURL(file)
+  })
+}
+
 const SEED_ITEMS = [
   { id:"1747440000001", name:"AP Swatch Ocho Negro", sub1:"", sub2:"", size:"", qty:"1",
     buyPrice:"335", sellPrice:"1600", platformFee:"", shippingCost:"40",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-05-17" },
-
   { id:"1747872000001", name:"Chaos Rising ETB", sub1:"", sub2:"", size:"", qty:"1",
     buyPrice:"49", sellPrice:"58", platformFee:"", shippingCost:"",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-05-22" },
@@ -53,39 +61,30 @@ const SEED_ITEMS = [
   { id:"1747872000004", name:"Chaos Rising ETB", sub1:"", sub2:"", size:"", qty:"1",
     buyPrice:"49", sellPrice:"57", platformFee:"", shippingCost:"",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-05-22" },
-
   { id:"1747872000005", name:"Chaos Rising Half Booster", sub1:"", sub2:"", size:"", qty:"2",
     buyPrice:"71", sellPrice:"76", platformFee:"", shippingCost:"4",
     platform:"", status:"Sold", notes:"RRP £142 total, sold £152 total, costs £8", dateAdded:"2026-05-22" },
-
   { id:"1747872000006", name:"Chaos Rising Half Booster", sub1:"", sub2:"", size:"", qty:"5",
     buyPrice:"72", sellPrice:"80", platformFee:"", shippingCost:"",
     platform:"", status:"Sold", notes:"RRP £360 total, sold £400 total", dateAdded:"2026-05-22" },
-
   { id:"1748390400001", name:"Topps Chrome Arsenal", sub1:"", sub2:"", size:"", qty:"1",
     buyPrice:"200", sellPrice:"302", platformFee:"", shippingCost:"10",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-05-28" },
-
   { id:"1748390400002", name:"Topps Chrome Arsenal", sub1:"", sub2:"", size:"", qty:"1",
     buyPrice:"200", sellPrice:"250", platformFee:"", shippingCost:"",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-05-28" },
-
   { id:"1748476800001", name:"Supreme Wings Football Jersey", sub1:"", sub2:"", size:"", qty:"1",
     buyPrice:"138", sellPrice:"158", platformFee:"", shippingCost:"5",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-05-29" },
-
   { id:"1748476800002", name:"Travis Scott Jordan 1 Pink Muslin", sub1:"Pink Muslin", sub2:"", size:"8",
     buyPrice:"145", sellPrice:"370", platformFee:"", shippingCost:"59",
     platform:"", status:"Sold", notes:"UK 8", dateAdded:"2026-05-29" },
-
   { id:"1748822400001", name:"Fanatics", sub1:"", sub2:"", size:"", qty:"2",
     buyPrice:"135", sellPrice:"220", platformFee:"", shippingCost:"10",
     platform:"", status:"Sold", notes:"RRP £270 total, sold £440 total, costs £20", dateAdded:"2026-06-02" },
-
   { id:"1749340800001", name:"Nike Minds Black", sub1:"", sub2:"", size:"8",
     buyPrice:"80", sellPrice:"115", platformFee:"", shippingCost:"",
     platform:"", status:"Sold", notes:"UK 8", dateAdded:"2026-06-08" },
-
   { id:"1749686400001", name:"Palace Pewter Grey", sub1:"", sub2:"", size:"XXL",
     buyPrice:"", sellPrice:"85", platformFee:"", shippingCost:"3.67",
     platform:"", status:"Sold", notes:"Day costs £22 split", dateAdded:"2026-06-12" },
@@ -104,7 +103,6 @@ const SEED_ITEMS = [
   { id:"1749686400006", name:"Patta Exclusive Jersey", sub1:"", sub2:"", size:"L",
     buyPrice:"", sellPrice:"143.56", platformFee:"", shippingCost:"3.67",
     platform:"", status:"Sold", notes:"Day costs £22 split", dateAdded:"2026-06-12" },
-
   { id:"1749945600001", name:"Patta Tech Fleece", sub1:"", sub2:"", size:"L",
     buyPrice:"225", sellPrice:"346.37", platformFee:"", shippingCost:"",
     platform:"", status:"Sold", notes:"", dateAdded:"2026-06-16" },
@@ -130,18 +128,28 @@ const inpStyle = {
 const lblStyle = {
   fontSize:10, fontWeight:700, color:'#666', letterSpacing:'.07em', textTransform:'uppercase',
 }
+const overlayStyle = {
+  position:'fixed', inset:0, background:'rgba(0,0,0,.85)', zIndex:200,
+  display:'flex', padding:16, alignItems:'flex-end', justifyContent:'center',
+}
+const sheetStyle = {
+  background:'#0f0f1e', border:'1px solid #2a2a3e', borderRadius:'16px 16px 0 0',
+  width:'100%', maxWidth:540, display:'flex', flexDirection:'column',
+}
 
 export default function App() {
   const stored = load()
-  const [items, setItems]           = useState(stored.items)
-  const [category, setCategory]     = useState(stored.category)
-  const [filterStatus, setFilter]   = useState('All')
-  const [search, setSearch]         = useState('')
-  const [catOpen, setCatOpen]       = useState(false)
-  const [editItem, setEditItem]     = useState(null)
-  const [isEditing, setIsEditing]   = useState(false)
-  const [deleteId, setDeleteId]     = useState(null)
-  const [toast, setToast]           = useState({ msg:'', show:false })
+  const [items, setItems]         = useState(stored.items)
+  const [category, setCategory]   = useState(stored.category)
+  const [filterStatus, setFilter] = useState('All')
+  const [search, setSearch]       = useState('')
+  const [catOpen, setCatOpen]     = useState(false)
+  const [editItem, setEditItem]   = useState(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [deleteId, setDeleteId]   = useState(null)
+  const [toast, setToast]         = useState({ msg:'', show:false })
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [emailPrompt, setEmailPrompt]   = useState(null)
   const toastRef = useRef(null)
 
   const cat = CATEGORIES[category] || CATEGORIES["🛍️ General"]
@@ -150,33 +158,31 @@ export default function App() {
     localStorage.setItem('rl_items', JSON.stringify(nextItems))
     localStorage.setItem('rl_category', nextCat)
   }
-
   function updateItems(fn) {
     setItems(prev => { const next = fn(prev); persist(next, category); return next })
   }
-
   function updateCategory(key) {
-    setCategory(key)
-    persist(items, key)
+    setCategory(key); persist(items, key)
   }
-
   function showToast(msg) {
     clearTimeout(toastRef.current)
     setToast({ msg, show:true })
     toastRef.current = setTimeout(() => setToast(t => ({...t, show:false})), 2200)
   }
-
   function getSizeOpts() {
     if (cat.sizeType === 'shoe')    return SHOE_SIZES
     if (cat.sizeType === 'apparel') return APPAREL_SIZES
     return null
   }
 
+  // ── Stats ──
   const sold        = items.filter(i => i.status === 'Sold')
   const totalProfit = sold.reduce((s,i) => s + (calcProfit(i) ?? 0) * num(i.qty||1), 0)
   const totalInvest = items.reduce((s,i) => s + num(i.buyPrice) * num(i.qty||1), 0)
   const totalUnits  = items.reduce((s,i) => s + num(i.qty||1), 0)
   const soldUnits   = sold.reduce((s,i) => s + num(i.qty||1), 0)
+  const stockValue  = items.filter(i => i.status !== 'Sold')
+                           .reduce((s,i) => s + num(i.buyPrice) * num(i.qty||1), 0)
 
   const filtered = items.filter(i => {
     const ms = filterStatus === 'All' || i.status === filterStatus
@@ -184,9 +190,9 @@ export default function App() {
     return ms && mq
   })
 
-  function openAdd()     { setEditItem(newItem()); setIsEditing(false) }
-  function openEdit(id)  { const it = items.find(i=>i.id===id); if(it){setEditItem({...it});setIsEditing(true)} }
-  function closeEdit()   { setEditItem(null) }
+  function openAdd()    { setEditItem(newItem()); setIsEditing(false) }
+  function openEdit(id) { const it = items.find(i=>i.id===id); if(it){setEditItem({...it});setIsEditing(true)} }
+  function closeEdit()  { setEditItem(null) }
 
   function saveItem(updated) {
     if (isEditing) {
@@ -197,6 +203,9 @@ export default function App() {
       showToast('✅ Item added')
     }
     closeEdit()
+    if (updated.status === 'Sold' && localStorage.getItem('rl_email')) {
+      setEmailPrompt(updated)
+    }
   }
 
   function deleteItem() {
@@ -205,15 +214,35 @@ export default function App() {
     showToast('🗑️ Item deleted')
   }
 
+  function emailReceipt(item) {
+    const userEmail = localStorage.getItem('rl_email') || ''
+    const profit = calcProfit(item)
+    const profitLine = profit != null
+      ? `Profit (per unit): ${profit >= 0 ? '+' : ''}${fmt(profit)}`
+      : ''
+    const subject = encodeURIComponent(`Receipt: ${item.name} — ${fmt(item.sellPrice)}`)
+    const body = encodeURIComponent(
+      `RESELL LEDGER RECEIPT\n` +
+      `─────────────────────\n` +
+      `Item:      ${item.name}\n` +
+      `Date:      ${item.dateAdded}\n` +
+      `Platform:  ${item.platform || 'N/A'}\n` +
+      `Qty:       ${item.qty || 1}\n` +
+      `Buy Price: ${fmt(item.buyPrice)}\n` +
+      `Sell Price:${fmt(item.sellPrice)}\n` +
+      (profitLine ? `${profitLine}\n` : '') +
+      (item.notes ? `\nNotes: ${item.notes}` : '')
+    )
+    window.location.href = `mailto:${userEmail}?subject=${subject}&body=${body}`
+  }
+
   return (
     <div style={{background:'#0a0a0f',color:'#e8e8f0',fontFamily:"-apple-system,'Inter','Helvetica Neue',sans-serif",minHeight:'100vh',paddingBottom:60}}>
 
       <header style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderBottom:'1px solid #1e1e2e',background:'#0d0d18',position:'sticky',top:0,zIndex:50}}>
         <div style={{position:'relative'}}>
-          <button
-            onClick={() => setCatOpen(v=>!v)}
-            style={{display:'flex',alignItems:'center',gap:12,background:'none',border:'none',color:'inherit',padding:0,cursor:'pointer',WebkitTapHighlightColor:'transparent'}}
-          >
+          <button onClick={() => setCatOpen(v=>!v)}
+            style={{display:'flex',alignItems:'center',gap:12,background:'none',border:'none',color:'inherit',padding:0,cursor:'pointer',WebkitTapHighlightColor:'transparent'}}>
             <span style={{fontSize:30,lineHeight:1}}>{cat.emoji}</span>
             <div>
               <div style={{fontSize:18,fontWeight:800,letterSpacing:'.12em',color:'#fff'}}>RESELL LEDGER</div>
@@ -223,14 +252,12 @@ export default function App() {
             </div>
             <span style={{color:'#444',fontSize:13,marginLeft:4}}>▾</span>
           </button>
-
           {catOpen && (
             <>
               <div onClick={() => setCatOpen(false)} style={{position:'fixed',inset:0,zIndex:290}} />
               <div style={{position:'absolute',top:'calc(100% + 4px)',left:0,zIndex:300,background:'#13131f',border:'1px solid #2a2a3e',borderRadius:12,padding:8,minWidth:200,boxShadow:'0 8px 32px rgba(0,0,0,.7)'}}>
                 {Object.entries(CATEGORIES).map(([key, val]) => (
-                  <button key={key}
-                    onClick={() => { updateCategory(key); setCatOpen(false) }}
+                  <button key={key} onClick={() => { updateCategory(key); setCatOpen(false) }}
                     style={{display:'flex',alignItems:'center',gap:10,background:category===key?'#1e1e3e':'transparent',border:'none',color:category===key?'#fff':'#bbb',padding:'9px 14px',borderRadius:8,fontSize:14,fontWeight:600,width:'100%',cursor:'pointer',textAlign:'left'}}>
                     <span>{val.emoji}</span><span>{val.label}</span>
                   </button>
@@ -239,17 +266,23 @@ export default function App() {
             </>
           )}
         </div>
-        <button
-          onClick={openAdd}
-          style={{background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'#fff',border:'none',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
-          + Add
-        </button>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <button onClick={() => setSettingsOpen(true)}
+            style={{background:'transparent',border:'1px solid #2a2a3e',color:'#888',borderRadius:8,padding:'8px 10px',fontSize:15,cursor:'pointer',lineHeight:1}}>
+            ⚙️
+          </button>
+          <button onClick={openAdd}
+            style={{background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'#fff',border:'none',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
+            + Add
+          </button>
+        </div>
       </header>
 
       <div style={{display:'flex',gap:10,padding:'14px 16px',borderBottom:'1px solid #1e1e2e',overflowX:'auto'}}>
         {[
           { lbl:'Total Profit', val:`£${totalProfit.toFixed(2)}`, color: totalProfit>=0?'#4caf50':'#f44' },
           { lbl:'Invested',     val:`£${totalInvest.toFixed(2)}`, color:'#4a9eff' },
+          { lbl:'In Stock £',   val:`£${stockValue.toFixed(2)}`,  color:'#f59e0b' },
           { lbl:'Total Units',  val: totalUnits,                  color:'#c084fc' },
           { lbl:'Units Sold',   val: soldUnits,                   color:'#f59e0b' },
         ].map(s => (
@@ -261,14 +294,12 @@ export default function App() {
       </div>
 
       <div style={{display:'flex',flexDirection:'column',gap:10,padding:'12px 16px',borderBottom:'1px solid #1e1e2e'}}>
-        <input
-          value={search} onChange={e=>setSearch(e.target.value)}
+        <input value={search} onChange={e=>setSearch(e.target.value)}
           type="search" placeholder="Search items…"
           style={{...inpStyle,boxSizing:'border-box'}} />
         <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
           {['All',...STATUSES].map(st => {
-            const sc = STATUS_COLORS[st]
-            const active = filterStatus === st
+            const sc = STATUS_COLORS[st]; const active = filterStatus === st
             return (
               <button key={st} onClick={() => setFilter(st)}
                 style={{background: active ? (st==='All'?'#6366f1':sc.accent) : 'transparent',
@@ -333,23 +364,17 @@ export default function App() {
         })}
       </div>
 
+      {/* ── Modals ── */}
       {editItem && (
-        <EditModal
-          item={editItem}
-          isEditing={isEditing}
-          cat={cat}
-          sizeOpts={getSizeOpts()}
-          onSave={saveItem}
-          onClose={closeEdit}
+        <EditModal item={editItem} isEditing={isEditing} cat={cat} sizeOpts={getSizeOpts()}
+          onSave={saveItem} onClose={closeEdit}
           onDelete={id => { closeEdit(); setDeleteId(id) }}
-        />
+          onNeedSettings={() => setSettingsOpen(true)} />
       )}
 
       {deleteId && (
-        <div
-          onClick={e => { if(e.target===e.currentTarget) setDeleteId(null) }}
-          style={{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',zIndex:200,display:'flex',padding:16,alignItems:'flex-end',justifyContent:'center'}}>
-          <div style={{background:'#0f0f1e',border:'1px solid #2a2a3e',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:540,display:'flex',flexDirection:'column'}}>
+        <div onClick={e => { if(e.target===e.currentTarget) setDeleteId(null) }} style={overlayStyle}>
+          <div style={sheetStyle}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'18px 20px 14px',borderBottom:'1px solid #1e1e2e'}}>
               <span style={{fontSize:16,fontWeight:800,color:'#fff'}}>Delete Item?</span>
               <button onClick={()=>setDeleteId(null)} style={{background:'transparent',border:'none',color:'#555',fontSize:20,cursor:'pointer',lineHeight:1}}>✕</button>
@@ -365,6 +390,16 @@ export default function App() {
         </div>
       )}
 
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+
+      {emailPrompt && (
+        <EmailPromptModal
+          item={emailPrompt}
+          onSend={() => { emailReceipt(emailPrompt); setEmailPrompt(null) }}
+          onDismiss={() => setEmailPrompt(null)} />
+      )}
+
+      {/* ── Toast ── */}
       <div style={{position:'fixed',bottom:24,left:'50%',transform:'translateX(-50%)',background:'#1e1e3e',border:'1px solid #4a4a8e',color:'#c084fc',padding:'10px 20px',borderRadius:20,fontSize:13,fontWeight:600,opacity:toast.show?1:0,transition:'opacity .3s',pointerEvents:'none',zIndex:999,whiteSpace:'nowrap'}}>
         {toast.msg}
       </div>
@@ -372,10 +407,67 @@ export default function App() {
   )
 }
 
-function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete }) {
-  const [form, setForm] = useState({...item})
+// ── EditModal ────────────────────────────────────────────────────────────────
+function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete, onNeedSettings }) {
+  const [form, setForm]       = useState({...item})
+  const [scanLoading, setScanLoading] = useState(false)
+  const fileInputRef = useRef(null)
   const set = (k, v) => setForm(f => ({...f, [k]: v}))
   const profit = calcProfit(form)
+
+  async function handleScan(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    const apiKey = localStorage.getItem('rl_anthropic_key') || ''
+    if (!apiKey) { onNeedSettings(); e.target.value = ''; return }
+
+    setScanLoading(true)
+    try {
+      const base64 = await fileToBase64(file)
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 512,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
+              { type: 'text', text: 'Extract purchase/resell info from this receipt or order confirmation. Return ONLY valid JSON (no markdown): {"name":"","buyPrice":"","sellPrice":"","platform":"","dateAdded":"YYYY-MM-DD","notes":"","size":"","qty":"1"}. Use empty string for unknown fields. Strip currency symbols from prices.' }
+            ]
+          }]
+        })
+      })
+      if (!res.ok) throw new Error(`API ${res.status}`)
+      const data = await res.json()
+      const text = data?.content?.[0]?.text || ''
+      const match = text.match(/\{[\s\S]*\}/)
+      if (!match) throw new Error('No JSON')
+      const p = JSON.parse(match[0])
+      setForm(f => ({
+        ...f,
+        ...(p.name      ? { name: p.name }                              : {}),
+        ...(p.buyPrice  ? { buyPrice: String(p.buyPrice).replace(/[^0-9.]/g,'') }  : {}),
+        ...(p.sellPrice ? { sellPrice: String(p.sellPrice).replace(/[^0-9.]/g,'') } : {}),
+        ...(p.platform  ? { platform: p.platform }                      : {}),
+        ...(p.dateAdded && /^\d{4}-\d{2}-\d{2}$/.test(p.dateAdded) ? { dateAdded: p.dateAdded } : {}),
+        ...(p.notes     ? { notes: p.notes }                            : {}),
+        ...(p.size      ? { size: p.size }                              : {}),
+        ...(p.qty && Number(p.qty) > 1 ? { qty: String(p.qty) }        : {}),
+      }))
+    } catch {
+      alert('Could not parse receipt — try a clearer image.')
+    } finally {
+      setScanLoading(false)
+      e.target.value = ''
+    }
+  }
 
   function handleSave() {
     if (!form.name.trim()) { alert('Please enter an item name.'); return }
@@ -383,13 +475,21 @@ function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete }
   }
 
   return (
-    <div
-      onClick={e => { if(e.target===e.currentTarget) onClose() }}
-      style={{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',zIndex:200,display:'flex',padding:16,alignItems:'flex-end',justifyContent:'center'}}>
-      <div style={{background:'#0f0f1e',border:'1px solid #2a2a3e',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:540,maxHeight:'92vh',display:'flex',flexDirection:'column'}}>
+    <div onClick={e => { if(e.target===e.currentTarget) onClose() }} style={{...overlayStyle, zIndex:200}}>
+      <div style={{...sheetStyle, maxHeight:'92vh'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'18px 20px 14px',borderBottom:'1px solid #1e1e2e',flexShrink:0}}>
           <span style={{fontSize:16,fontWeight:800,color:'#fff'}}>{isEditing ? 'Edit Item' : `Add ${cat.label} Item`}</span>
-          <button onClick={onClose} style={{background:'transparent',border:'none',color:'#555',fontSize:20,cursor:'pointer',lineHeight:1}}>✕</button>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
+              style={{display:'none'}} onChange={handleScan} />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={scanLoading}
+              style={{background:'#1a1a2e',border:'1px solid #2a2a3e',color:scanLoading?'#555':'#8b8bcc',borderRadius:8,padding:'6px 12px',fontSize:12,fontWeight:700,cursor:scanLoading?'default':'pointer',whiteSpace:'nowrap'}}>
+              {scanLoading ? '⏳ Scanning…' : '📷 Scan Receipt'}
+            </button>
+            <button onClick={onClose} style={{background:'transparent',border:'none',color:'#555',fontSize:20,cursor:'pointer',lineHeight:1}}>✕</button>
+          </div>
         </div>
 
         <div style={{padding:'16px 20px',overflowY:'auto',flex:1}}>
@@ -454,6 +554,68 @@ function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete }
   )
 }
 
+// ── SettingsModal ─────────────────────────────────────────────────────────────
+function SettingsModal({ onClose }) {
+  const [apiKey, setApiKey] = useState(localStorage.getItem('rl_anthropic_key') || '')
+  const [email, setEmail]   = useState(localStorage.getItem('rl_email') || '')
+
+  function handleSave() {
+    localStorage.setItem('rl_anthropic_key', apiKey.trim())
+    localStorage.setItem('rl_email', email.trim())
+    onClose()
+  }
+
+  return (
+    <div onClick={e => { if(e.target===e.currentTarget) onClose() }} style={{...overlayStyle, zIndex:210}}>
+      <div style={sheetStyle}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'18px 20px 14px',borderBottom:'1px solid #1e1e2e'}}>
+          <span style={{fontSize:16,fontWeight:800,color:'#fff'}}>Settings</span>
+          <button onClick={onClose} style={{background:'transparent',border:'none',color:'#555',fontSize:20,cursor:'pointer',lineHeight:1}}>✕</button>
+        </div>
+        <div style={{padding:'20px',display:'flex',flexDirection:'column',gap:16}}>
+          <Field label="Anthropic API Key (for Receipt Scanner)">
+            <input type="password" value={apiKey} onChange={e=>setApiKey(e.target.value)}
+              placeholder="sk-ant-…" style={inpStyle} autoComplete="off" />
+            <div style={{fontSize:11,color:'#555',marginTop:4}}>Stored locally on your device only. Used to scan receipts with AI.</div>
+          </Field>
+          <Field label="Your Email (for Receipt Emails)">
+            <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
+              placeholder="you@example.com" style={inpStyle} />
+            <div style={{fontSize:11,color:'#555',marginTop:4}}>When you log a sale, we'll prompt you to email yourself a receipt.</div>
+          </Field>
+        </div>
+        <div style={{display:'flex',justifyContent:'flex-end',gap:8,padding:'14px 20px',borderTop:'1px solid #1e1e2e'}}>
+          <button onClick={onClose} style={{background:'transparent',border:'1px solid #2a2a3e',color:'#888',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Cancel</button>
+          <button onClick={handleSave} style={{background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'#fff',border:'none',borderRadius:8,padding:'9px 22px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Save</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── EmailPromptModal ──────────────────────────────────────────────────────────
+function EmailPromptModal({ item, onSend, onDismiss }) {
+  const userEmail = localStorage.getItem('rl_email') || ''
+  return (
+    <div onClick={e => { if(e.target===e.currentTarget) onDismiss() }} style={{...overlayStyle, zIndex:220}}>
+      <div style={sheetStyle}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'18px 20px 14px',borderBottom:'1px solid #1e1e2e'}}>
+          <span style={{fontSize:16,fontWeight:800,color:'#fff'}}>✉️ Send Receipt?</span>
+          <button onClick={onDismiss} style={{background:'transparent',border:'none',color:'#555',fontSize:20,cursor:'pointer',lineHeight:1}}>✕</button>
+        </div>
+        <div style={{padding:'16px 20px',color:'#aaa',fontSize:14,lineHeight:1.6}}>
+          Send an email receipt for <span style={{color:'#fff',fontWeight:700}}>{item.name}</span> to <span style={{color:'#6366f1'}}>{userEmail}</span>?
+        </div>
+        <div style={{display:'flex',justifyContent:'flex-end',gap:8,padding:'14px 20px',borderTop:'1px solid #1e1e2e'}}>
+          <button onClick={onDismiss} style={{background:'transparent',border:'1px solid #2a2a3e',color:'#888',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Skip</button>
+          <button onClick={onSend} style={{background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'#fff',border:'none',borderRadius:8,padding:'9px 22px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Send Receipt ✉️</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Field ─────────────────────────────────────────────────────────────────────
 function Field({ label, children }) {
   return (
     <div style={{display:'flex',flexDirection:'column',gap:4}}>
