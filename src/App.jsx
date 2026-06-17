@@ -425,7 +425,7 @@ export default function App() {
             {items.length === 0 ? 'No items yet — add your first flip!' : 'No items match your filters.'}
           </div>
         ) : (() => {
-          const sorted = [...filtered].sort((a,b) => (a.dateAdded||'').localeCompare(b.dateAdded||''))
+          const sorted = [...filtered].sort((a,b) => (b.dateAdded||'').localeCompare(a.dateAdded||''))
           // pre-compute profit per date
           const profitByDate = {}
           for (const item of sorted) {
