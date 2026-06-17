@@ -47,11 +47,18 @@ function fileToBase64(file) {
   })
 }
 
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC6KYx7FHFGeipSaiL5X2iV4EwMprK2_CQ",
+  authDomain: "newtracker-9ff56.firebaseapp.com",
+  projectId: "newtracker-9ff56",
+  storageBucket: "newtracker-9ff56.firebasestorage.app",
+  messagingSenderId: "251436391719",
+  appId: "1:251436391719:web:205c76a87b2c1b6e651d02",
+}
+
 function getDb() {
   try {
-    const cfg = JSON.parse(localStorage.getItem('rl_firebase_config') || 'null')
-    if (!cfg?.projectId) return null
-    const app = getApps().length ? getApp() : initializeApp(cfg)
+    const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG)
     return getFirestore(app)
   } catch { return null }
 }
@@ -622,30 +629,21 @@ function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete, 
 
 // ── SettingsModal ─────────────────────────────────────────────────────────────
 function SettingsModal({ onClose, onSyncNow }) {
-  const [apiKey,    setApiKey]    = useState(localStorage.getItem('rl_anthropic_key') || '')
-  const [email,     setEmail]     = useState(localStorage.getItem('rl_email') || '')
-  const [fbConfig,  setFbConfig]  = useState(localStorage.getItem('rl_firebase_config') || '')
-  const [syncId,    setSyncId]    = useState(localStorage.getItem('rl_sync_id') || '')
-  const [syncMsg,   setSyncMsg]   = useState('')
+  const [apiKey,  setApiKey]  = useState(localStorage.getItem('rl_anthropic_key') || '')
+  const [email,   setEmail]   = useState(localStorage.getItem('rl_email') || '')
+  const [syncId,  setSyncId]  = useState(localStorage.getItem('rl_sync_id') || '')
+  const [syncMsg, setSyncMsg] = useState('')
 
   function handleSave() {
     localStorage.setItem('rl_anthropic_key', apiKey.trim())
     localStorage.setItem('rl_email', email.trim())
-
-    const prevConfig = localStorage.getItem('rl_firebase_config') || ''
     const prevSyncId = localStorage.getItem('rl_sync_id') || ''
-    localStorage.setItem('rl_firebase_config', fbConfig.trim())
     localStorage.setItem('rl_sync_id', syncId.trim())
-
-    if (fbConfig.trim() !== prevConfig || syncId.trim() !== prevSyncId) {
+    if (syncId.trim() !== prevSyncId) {
       window.location.reload()
     } else {
       onClose()
     }
-  }
-
-  function handleGenId() {
-    setSyncId(generateId())
   }
 
   async function handleSyncNow() {
@@ -679,36 +677,26 @@ function SettingsModal({ onClose, onSyncNow }) {
           </Field>
 
           <div style={{borderTop:'1px solid #1e1e2e',paddingTop:16}}>
-            <div style={{fontSize:12,fontWeight:700,color:'#8b8bcc',marginBottom:12,letterSpacing:'.05em',textTransform:'uppercase'}}>Cloud Sync (optional)</div>
+            <div style={{fontSize:12,fontWeight:700,color:'#8b8bcc',marginBottom:8,letterSpacing:'.05em',textTransform:'uppercase'}}>Cloud Sync</div>
             <div style={{fontSize:12,color:'#555',marginBottom:12,lineHeight:1.6}}>
-              Sync data across all your devices in real time using Firebase Firestore.<br/>
-              1. Create a free project at <span style={{color:'#6366f1'}}>console.firebase.google.com</span><br/>
-              2. Add a Web App → copy the firebaseConfig JSON<br/>
-              3. Enable Firestore Database (test mode is fine)<br/>
-              4. Paste config below, generate a Sync ID, then Save
+              Sync your data across all devices in real time. Generate a Sync ID on one device, then enter the same ID on your other devices.
             </div>
-            <Field label="Firebase Config (JSON)">
-              <textarea value={fbConfig} onChange={e=>setFbConfig(e.target.value)} rows={4}
-                placeholder={'{\n  "apiKey": "...",\n  "authDomain": "...",\n  "projectId": "..."\n}'}
-                style={{...inpStyle, resize:'vertical', fontFamily:'monospace', fontSize:12}} />
-              <div style={{fontSize:11,color:'#555',marginTop:4}}>Paste the full firebaseConfig object from your Firebase project.</div>
-            </Field>
             <Field label="Sync ID">
               <div style={{display:'flex',gap:8}}>
                 <input value={syncId} onChange={e=>setSyncId(e.target.value)}
-                  placeholder="Shared key across your devices"
+                  placeholder="Generate or paste your sync key"
                   style={{...inpStyle, fontFamily:'monospace', fontSize:12}} />
-                <button onClick={handleGenId}
+                <button onClick={() => setSyncId(generateId())}
                   style={{background:'#1a1a2e',border:'1px solid #2a2a3e',color:'#8b8bcc',borderRadius:7,padding:'9px 12px',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>
                   Generate
                 </button>
               </div>
-              <div style={{fontSize:11,color:'#555',marginTop:4}}>Use the same Sync ID on every device to share data. Keep it private.</div>
+              <div style={{fontSize:11,color:'#555',marginTop:4}}>Use the same Sync ID on every device. Keep it private — anyone with this ID can read your data.</div>
             </Field>
-            {syncId && fbConfig && (
+            {syncId && (
               <button onClick={handleSyncNow}
-                style={{marginTop:8,background:'#1a2a1a',border:'1px solid #4caf50',color:'#4caf50',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer',width:'100%'}}>
-                {syncMsg || 'Sync Now'}
+                style={{marginTop:10,background:'#1a2a1a',border:'1px solid #4caf50',color:'#4caf50',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer',width:'100%'}}>
+                {syncMsg || 'Push to Cloud Now'}
               </button>
             )}
           </div>
