@@ -1,4 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { initializeApp, getApps, getApp } from 'firebase/app'
+import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore'
 
 const PLATFORMS = ["StockX","GOAT","eBay","Grailed","TCGPlayer","Depop","Poshmark","Facebook Marketplace","Local","Other"]
 const STATUSES  = ["In Hand","Listed","Sold","Pending"]
@@ -44,6 +46,24 @@ function fileToBase64(file) {
     r.readAsDataURL(file)
   })
 }
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC6KYx7FHFGeipSaiL5X2iV4EwMprK2_CQ",
+  authDomain: "newtracker-9ff56.firebaseapp.com",
+  projectId: "newtracker-9ff56",
+  storageBucket: "newtracker-9ff56.firebasestorage.app",
+  messagingSenderId: "251436391719",
+  appId: "1:251436391719:web:205c76a87b2c1b6e651d02",
+}
+
+function getDb() {
+  try {
+    const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG)
+    return getFirestore(app)
+  } catch { return null }
+}
+const getSyncId = () => localStorage.getItem('rl_sync_id') || ''
+const generateId = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2,10) + Date.now().toString(36))
 
 const SEED_ITEMS = [
   { id:"1747440000001", name:"AP Swatch Ocho Negro", sub1:"", sub2:"", size:"", qty:"1",
@@ -150,19 +170,64 @@ export default function App() {
   const [toast, setToast]         = useState({ msg:'', show:false })
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [emailPrompt, setEmailPrompt]   = useState(null)
-  const toastRef = useRef(null)
+  const [cloudStatus, setCloudStatus]   = useState('local')
+  const toastRef  = useRef(null)
+  const skipNext  = useRef(false)
+  const itemsRef  = useRef(items)
+  const categoryRef = useRef(category)
+
+  useEffect(() => { itemsRef.current = items }, [items])
+  useEffect(() => { categoryRef.current = category }, [category])
+
+  useEffect(() => {
+    const db = getDb()
+    const syncId = getSyncId()
+    if (!db || !syncId) return
+    const ref = doc(db, 'ledgers', syncId)
+    const unsub = onSnapshot(ref, snap => {
+      if (skipNext.current) { skipNext.current = false; return }
+      if (snap.exists()) {
+        const data = snap.data()
+        if (Array.isArray(data.items) && data.items.length > 0) {
+          setItems(data.items)
+          localStorage.setItem('rl_items', JSON.stringify(data.items))
+        }
+        if (data.category) {
+          setCategory(data.category)
+          localStorage.setItem('rl_category', data.category)
+        }
+      }
+      setCloudStatus('synced')
+    }, () => setCloudStatus('error'))
+    return unsub
+  }, [])
+
+  async function pushToCloud(nextItems, nextCat) {
+    const db = getDb()
+    const syncId = getSyncId()
+    if (!db || !syncId) return
+    skipNext.current = true
+    try {
+      await setDoc(doc(db, 'ledgers', syncId), { items: nextItems, category: nextCat })
+      setCloudStatus('synced')
+    } catch {
+      skipNext.current = false
+      setCloudStatus('error')
+    }
+  }
 
   const cat = CATEGORIES[category] || CATEGORIES["🛍️ General"]
 
   function persist(nextItems, nextCat) {
     localStorage.setItem('rl_items', JSON.stringify(nextItems))
     localStorage.setItem('rl_category', nextCat)
+    pushToCloud(nextItems, nextCat)
   }
   function updateItems(fn) {
-    setItems(prev => { const next = fn(prev); persist(next, category); return next })
+    setItems(prev => { const next = fn(prev); persist(next, categoryRef.current); return next })
   }
   function updateCategory(key) {
-    setCategory(key); persist(items, key)
+    setCategory(key); persist(itemsRef.current, key)
   }
   function showToast(msg) {
     clearTimeout(toastRef.current)
@@ -236,6 +301,9 @@ export default function App() {
     window.location.href = `mailto:${userEmail}?subject=${subject}&body=${body}`
   }
 
+  const syncDot = cloudStatus === 'synced' ? '#4caf50' : cloudStatus === 'error' ? '#f44336' : '#666'
+  const syncTip = cloudStatus === 'synced' ? 'Synced' : cloudStatus === 'error' ? 'Sync error' : 'Local only'
+
   return (
     <div style={{background:'#0a0a0f',color:'#e8e8f0',fontFamily:"-apple-system,'Inter','Helvetica Neue',sans-serif",minHeight:'100vh',paddingBottom:60}}>
 
@@ -267,6 +335,7 @@ export default function App() {
           )}
         </div>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <span title={syncTip} style={{width:8,height:8,borderRadius:'50%',background:syncDot,display:'inline-block',flexShrink:0}} />
           <button onClick={() => setSettingsOpen(true)}
             style={{background:'transparent',border:'1px solid #2a2a3e',color:'#888',borderRadius:8,padding:'8px 10px',fontSize:15,cursor:'pointer',lineHeight:1}}>
             ⚙️
@@ -390,7 +459,11 @@ export default function App() {
         </div>
       )}
 
-      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsModal
+          onClose={() => setSettingsOpen(false)}
+          onSyncNow={() => pushToCloud(itemsRef.current, categoryRef.current)} />
+      )}
 
       {emailPrompt && (
         <EmailPromptModal
@@ -555,24 +628,43 @@ function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete, 
 }
 
 // ── SettingsModal ─────────────────────────────────────────────────────────────
-function SettingsModal({ onClose }) {
-  const [apiKey, setApiKey] = useState(localStorage.getItem('rl_anthropic_key') || '')
-  const [email, setEmail]   = useState(localStorage.getItem('rl_email') || '')
+function SettingsModal({ onClose, onSyncNow }) {
+  const [apiKey,  setApiKey]  = useState(localStorage.getItem('rl_anthropic_key') || '')
+  const [email,   setEmail]   = useState(localStorage.getItem('rl_email') || '')
+  const [syncId,  setSyncId]  = useState(localStorage.getItem('rl_sync_id') || '')
+  const [syncMsg, setSyncMsg] = useState('')
 
   function handleSave() {
     localStorage.setItem('rl_anthropic_key', apiKey.trim())
     localStorage.setItem('rl_email', email.trim())
-    onClose()
+    const prevSyncId = localStorage.getItem('rl_sync_id') || ''
+    localStorage.setItem('rl_sync_id', syncId.trim())
+    if (syncId.trim() !== prevSyncId) {
+      window.location.reload()
+    } else {
+      onClose()
+    }
+  }
+
+  async function handleSyncNow() {
+    setSyncMsg('Syncing…')
+    try {
+      await onSyncNow()
+      setSyncMsg('Synced!')
+    } catch {
+      setSyncMsg('Sync failed')
+    }
+    setTimeout(() => setSyncMsg(''), 2500)
   }
 
   return (
     <div onClick={e => { if(e.target===e.currentTarget) onClose() }} style={{...overlayStyle, zIndex:210}}>
-      <div style={sheetStyle}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'18px 20px 14px',borderBottom:'1px solid #1e1e2e'}}>
+      <div style={{...sheetStyle, maxHeight:'92vh'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'18px 20px 14px',borderBottom:'1px solid #1e1e2e',flexShrink:0}}>
           <span style={{fontSize:16,fontWeight:800,color:'#fff'}}>Settings</span>
           <button onClick={onClose} style={{background:'transparent',border:'none',color:'#555',fontSize:20,cursor:'pointer',lineHeight:1}}>✕</button>
         </div>
-        <div style={{padding:'20px',display:'flex',flexDirection:'column',gap:16}}>
+        <div style={{padding:'20px',display:'flex',flexDirection:'column',gap:16,overflowY:'auto',flex:1}}>
           <Field label="Anthropic API Key (for Receipt Scanner)">
             <input type="password" value={apiKey} onChange={e=>setApiKey(e.target.value)}
               placeholder="sk-ant-…" style={inpStyle} autoComplete="off" />
@@ -583,8 +675,33 @@ function SettingsModal({ onClose }) {
               placeholder="you@example.com" style={inpStyle} />
             <div style={{fontSize:11,color:'#555',marginTop:4}}>When you log a sale, we'll prompt you to email yourself a receipt.</div>
           </Field>
+
+          <div style={{borderTop:'1px solid #1e1e2e',paddingTop:16}}>
+            <div style={{fontSize:12,fontWeight:700,color:'#8b8bcc',marginBottom:8,letterSpacing:'.05em',textTransform:'uppercase'}}>Cloud Sync</div>
+            <div style={{fontSize:12,color:'#555',marginBottom:12,lineHeight:1.6}}>
+              Sync your data across all devices in real time. Generate a Sync ID on one device, then enter the same ID on your other devices.
+            </div>
+            <Field label="Sync ID">
+              <div style={{display:'flex',gap:8}}>
+                <input value={syncId} onChange={e=>setSyncId(e.target.value)}
+                  placeholder="Generate or paste your sync key"
+                  style={{...inpStyle, fontFamily:'monospace', fontSize:12}} />
+                <button onClick={() => setSyncId(generateId())}
+                  style={{background:'#1a1a2e',border:'1px solid #2a2a3e',color:'#8b8bcc',borderRadius:7,padding:'9px 12px',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>
+                  Generate
+                </button>
+              </div>
+              <div style={{fontSize:11,color:'#555',marginTop:4}}>Use the same Sync ID on every device. Keep it private — anyone with this ID can read your data.</div>
+            </Field>
+            {syncId && (
+              <button onClick={handleSyncNow}
+                style={{marginTop:10,background:'#1a2a1a',border:'1px solid #4caf50',color:'#4caf50',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer',width:'100%'}}>
+                {syncMsg || 'Push to Cloud Now'}
+              </button>
+            )}
+          </div>
         </div>
-        <div style={{display:'flex',justifyContent:'flex-end',gap:8,padding:'14px 20px',borderTop:'1px solid #1e1e2e'}}>
+        <div style={{display:'flex',justifyContent:'flex-end',gap:8,padding:'14px 20px',borderTop:'1px solid #1e1e2e',flexShrink:0}}>
           <button onClick={onClose} style={{background:'transparent',border:'1px solid #2a2a3e',color:'#888',borderRadius:8,padding:'9px 18px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Cancel</button>
           <button onClick={handleSave} style={{background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'#fff',border:'none',borderRadius:8,padding:'9px 22px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Save</button>
         </div>
