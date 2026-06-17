@@ -284,7 +284,7 @@ export default function App() {
   const totalUnits  = items.reduce((s,i) => s + num(i.qty||1), 0)
   const soldUnits   = sold.reduce((s,i) => s + num(i.qty||1), 0)
   const stockValue  = items.filter(i => i.status !== 'Sold')
-                           .reduce((s,i) => s + num(i.buyPrice) * num(i.qty||1), 0)
+                           .reduce((s,i) => s + num(i.buyPrice) * num(i.qty||1) + num(i.shippingCost), 0)
 
   const filtered = items.filter(i => {
     const ms = filterStatus === 'All' || i.status === filterStatus
