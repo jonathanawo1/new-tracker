@@ -283,7 +283,9 @@ export default function App() {
   const totalInvest = items.reduce((s,i) => s + num(i.buyPrice) * num(i.qty||1) + num(i.shippingCost), 0)
   const totalUnits  = items.reduce((s,i) => s + num(i.qty||1), 0)
   const soldUnits   = sold.reduce((s,i) => s + num(i.qty||1), 0)
-  const stockValue  = items.filter(i => !num(i.sellPrice))
+  // bundles with a sell price should be excluded as a unit
+  const bundlesWithSell = new Set(items.filter(i => i.bundleId && num(i.sellPrice)).map(i => i.bundleId))
+  const stockValue  = items.filter(i => !num(i.sellPrice) && !(i.bundleId && bundlesWithSell.has(i.bundleId)))
                            .reduce((s,i) => s + num(i.buyPrice) * num(i.qty||1) + num(i.shippingCost), 0)
 
   const filtered = items.filter(i => {
