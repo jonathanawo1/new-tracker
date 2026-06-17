@@ -426,6 +426,14 @@ export default function App() {
           </div>
         ) : (() => {
           const sorted = [...filtered].sort((a,b) => (a.dateAdded||'').localeCompare(b.dateAdded||''))
+          // pre-compute profit per date
+          const profitByDate = {}
+          for (const item of sorted) {
+            const d = item.dateAdded || ''
+            const p = calcProfit(item)
+            if (p != null) profitByDate[d] = (profitByDate[d] || 0) + p * num(item.qty||1)
+          }
+
           const groups = []
           let lastDate = null
           for (const item of sorted) {
@@ -436,10 +444,16 @@ export default function App() {
           return groups.map((g, idx) => {
             if (g.type === 'date') {
               const label = g.date ? new Date(g.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'long', year:'numeric' }) : 'No date'
+              const dp = profitByDate[g.date]
               return (
                 <div key={'d-'+g.date+idx} style={{display:'flex',alignItems:'center',gap:10,marginTop: idx===0?0:6}}>
                   <div style={{flex:1,height:1,background:'#1e1e2e'}} />
                   <span style={{fontSize:11,fontWeight:700,color:'#444',letterSpacing:'.06em',textTransform:'uppercase',whiteSpace:'nowrap'}}>{label}</span>
+                  {dp != null && (
+                    <span style={{fontSize:11,fontWeight:700,color:dp>=0?'#4caf50':'#f44336',whiteSpace:'nowrap'}}>
+                      {dp>=0?'+':''}{fmt(dp)}
+                    </span>
+                  )}
                   <div style={{flex:1,height:1,background:'#1e1e2e'}} />
                 </div>
               )
