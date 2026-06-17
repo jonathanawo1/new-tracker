@@ -433,7 +433,7 @@ export default function App() {
             const d = item.dateAdded || ''
             const p = calcProfit(item)
             if (p != null) profitByDate[d] = (profitByDate[d] || 0) + p * num(item.qty||1)
-            if (item.buyPrice) spendByDate[d] = (spendByDate[d] || 0) + num(item.buyPrice) * num(item.qty||1)
+            if (item.buyPrice) spendByDate[d] = (spendByDate[d] || 0) + num(item.buyPrice) * num(item.qty||1) + num(item.shippingCost)
           }
 
           const groups = []
