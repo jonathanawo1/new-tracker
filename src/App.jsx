@@ -684,15 +684,15 @@ function SettingsModal({ onClose, onPush, onPull }) {
     }
   }
 
-  async function handleAction(fn, msg) {
-    setSyncMsg(msg + '…')
+  async function handleAction(fn, label) {
+    setSyncMsg(label + '…')
     try {
       await fn()
-      setSyncMsg(msg === 'Pushing' ? 'Pushed!' : 'Pulled!')
-    } catch {
-      setSyncMsg('Failed')
+      setSyncMsg(label === 'Pulling' ? 'Pulled!' : 'Pushed!')
+    } catch(e) {
+      setSyncMsg('Error: ' + (e?.code || e?.message || 'unknown'))
     }
-    setTimeout(() => setSyncMsg(''), 2500)
+    setTimeout(() => setSyncMsg(''), 6000)
   }
 
   return (
@@ -719,6 +719,11 @@ function SettingsModal({ onClose, onPush, onPull }) {
             <div style={{fontSize:12,color:'#555',marginBottom:12,lineHeight:1.6}}>
               Sync your data across all devices in real time. Generate a Sync ID on one device, then enter the same ID on your other devices.
             </div>
+            <div style={{fontSize:12,background:'#1a1a0a',border:'1px solid #4a3a00',borderRadius:8,padding:'10px 12px',marginBottom:12,color:'#aaa',lineHeight:1.7}}>
+              <span style={{color:'#f59e0b',fontWeight:700}}>⚠ Firestore rules must allow access.</span><br/>
+              In Firebase Console → Firestore → Rules, set:<br/>
+              <span style={{fontFamily:'monospace',color:'#8b8bcc',fontSize:11}}>allow read, write: if true;</span>
+            </div>
             <Field label="Sync ID">
               <div style={{display:'flex',gap:8}}>
                 <input value={syncId} onChange={e=>setSyncId(e.target.value)}
@@ -735,16 +740,16 @@ function SettingsModal({ onClose, onPush, onPull }) {
               <div style={{display:'flex',gap:8,marginTop:10}}>
                 <button onClick={() => handleAction(onPull, 'Pulling')}
                   style={{flex:1,background:'#1a1a2e',border:'1px solid #4a9eff',color:'#4a9eff',borderRadius:8,padding:'9px 12px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
-                  {syncMsg?.includes('Pull') ? syncMsg : '⬇ Pull from Cloud'}
+                  ⬇ Pull from Cloud
                 </button>
                 <button onClick={() => handleAction(onPush, 'Pushing')}
                   style={{flex:1,background:'#1a2a1a',border:'1px solid #4caf50',color:'#4caf50',borderRadius:8,padding:'9px 12px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
-                  {syncMsg?.includes('Push') ? syncMsg : '⬆ Push to Cloud'}
+                  ⬆ Push to Cloud
                 </button>
               </div>
             )}
-            {syncMsg && !syncMsg.includes('Pull') && !syncMsg.includes('Push') && (
-              <div style={{marginTop:8,fontSize:12,color:'#4caf50',textAlign:'center'}}>{syncMsg}</div>
+            {syncMsg && (
+              <div style={{marginTop:8,fontSize:12,color:syncMsg.startsWith('Error')?'#f44336':'#4caf50',textAlign:'center',wordBreak:'break-all'}}>{syncMsg}</div>
             )}
           </div>
         </div>
