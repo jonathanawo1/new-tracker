@@ -35,7 +35,7 @@ function calcProfit(item) {
 function newItem() {
   return { id: Date.now().toString(), name:"", sub1:"", sub2:"", size:"", qty:"1",
     buyPrice:"", sellPrice:"", platformFee:"", shippingCost:"",
-    platform:"", status:"In Hand", notes:"", dateAdded: today() }
+    platform:"", status:"In Hand", notes:"", dateAdded: today(), bundleId: "" }
 }
 
 function fileToBase64(file) {
@@ -280,7 +280,7 @@ export default function App() {
   // ── Stats ──
   const sold        = items.filter(i => i.status === 'Sold')
   const totalProfit = sold.reduce((s,i) => s + (calcProfit(i) ?? 0) * num(i.qty||1), 0)
-  const totalInvest = items.reduce((s,i) => s + num(i.buyPrice) * num(i.qty||1), 0)
+  const totalInvest = items.reduce((s,i) => s + num(i.buyPrice) * num(i.qty||1) + num(i.shippingCost), 0)
   const totalUnits  = items.reduce((s,i) => s + num(i.qty||1), 0)
   const soldUnits   = sold.reduce((s,i) => s + num(i.qty||1), 0)
   const stockValue  = items.filter(i => i.status !== 'Sold')
@@ -433,15 +433,33 @@ export default function App() {
             const d = item.dateAdded || ''
             const p = calcProfit(item)
             if (p != null) profitByDate[d] = (profitByDate[d] || 0) + p * num(item.qty||1)
-            if (item.buyPrice) spendByDate[d] = (spendByDate[d] || 0) + num(item.buyPrice) * num(item.qty||1)
+            const itemSpend = num(item.buyPrice) * num(item.qty||1) + num(item.shippingCost)
+            if (itemSpend) spendByDate[d] = (spendByDate[d] || 0) + itemSpend + num(item.shippingCost)
           }
+
+          // group items by bundleId
+          const bundleMap = {}
+          for (const item of sorted) {
+            if (item.bundleId) {
+              if (!bundleMap[item.bundleId]) bundleMap[item.bundleId] = []
+              bundleMap[item.bundleId].push(item)
+            }
+          }
+          const seenBundles = new Set()
 
           const groups = []
           let lastDate = null
           for (const item of sorted) {
             const d = item.dateAdded || ''
             if (d !== lastDate) { groups.push({ type:'date', date:d }); lastDate = d }
-            groups.push({ type:'item', item })
+            if (item.bundleId) {
+              if (!seenBundles.has(item.bundleId)) {
+                seenBundles.add(item.bundleId)
+                groups.push({ type:'bundle', bundleId: item.bundleId, items: bundleMap[item.bundleId] })
+              }
+            } else {
+              groups.push({ type:'item', item })
+            }
           }
           return groups.map((g, idx) => {
             if (g.type === 'date') {
@@ -462,6 +480,55 @@ export default function App() {
                     </span>
                   )}
                   <div style={{flex:1,height:1,background:'#1e1e2e'}} />
+                </div>
+              )
+            }
+            if (g.type === 'bundle') {
+              const bItems = g.items
+              const totalBuy = bItems.reduce((s,i) => s + num(i.buyPrice)*num(i.qty||1), 0)
+              const totalSell = bItems.reduce((s,i) => s + num(i.sellPrice)*num(i.qty||1), 0)
+              const totalCosts = bItems.reduce((s,i) => s + num(i.shippingCost), 0)
+              const totalFees = bItems.reduce((s,i) => s + num(i.sellPrice)*num(i.qty||1)*(num(i.platformFee)/100), 0)
+              const bundleProfit = totalSell > 0 ? totalSell - totalBuy - totalCosts - totalFees : null
+              const sc = STATUS_COLORS[bItems[0].status] || STATUS_COLORS['In Hand']
+              return (
+                <div key={'bundle-'+g.bundleId} style={{background:'#111120',border:'1px solid #2a2a4e',borderRadius:12,padding:'14px 16px'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                    <span style={{fontSize:10,fontWeight:700,color:'#6366f1',letterSpacing:'.06em',textTransform:'uppercase',background:'#1a1a3e',border:'1px solid #3a3a6e',borderRadius:20,padding:'2px 9px'}}>Bundle</span>
+                    <span style={{fontSize:11,color:'#555'}}>{bItems.length} items</span>
+                  </div>
+                  {bItems.map(bi => {
+                    const subLine = [bi.sub1,bi.sub2].filter(Boolean).join(' · ')
+                    return (
+                      <div key={bi.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,padding:'7px 0',borderBottom:'1px solid #1a1a28'}}>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontWeight:600,color:'#e0e0f0',fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{bi.name}{bi.size ? ` · ${bi.size}` : ''}</div>
+                          {subLine && <div style={{color:'#555',fontSize:11}}>{subLine}</div>}
+                        </div>
+                        <div style={{display:'flex',gap:8,alignItems:'center',flexShrink:0}}>
+                          <span style={{fontSize:12,color:'#666'}}>{bi.buyPrice ? fmt(bi.buyPrice) : '—'}</span>
+                          <button onClick={()=>openEdit(bi.id)} style={{background:'transparent',border:'1px solid #2a2a3e',borderRadius:6,padding:'4px 7px',fontSize:12,cursor:'pointer'}}>✏️</button>
+                          <button onClick={()=>setDeleteId(bi.id)} style={{background:'transparent',border:'1px solid #2a1a1a',borderRadius:6,padding:'4px 7px',fontSize:12,cursor:'pointer'}}>🗑️</button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginTop:10,paddingTop:10}}>
+                    <div>
+                      <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Total Buy</div>
+                      <div style={{fontSize:13,fontWeight:700}}>{totalBuy ? fmt(totalBuy) : '—'}</div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Total Sell</div>
+                      <div style={{fontSize:13,fontWeight:700}}>{totalSell ? fmt(totalSell) : '—'}</div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Profit</div>
+                      <div style={{fontSize:13,fontWeight:700,color:bundleProfit==null?'#555':bundleProfit>=0?'#4caf50':'#f44336'}}>
+                        {bundleProfit==null ? '—' : `${bundleProfit>=0?'+':''}${fmt(bundleProfit)}`}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )
             }
@@ -679,6 +746,21 @@ function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete, 
               </select>
             </Field>
             <Field label="Date"><input type="date" value={form.dateAdded} onChange={e=>set('dateAdded',e.target.value)} style={inpStyle} /></Field>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px 12px',marginBottom:12}}>
+            <div style={{gridColumn:'1/-1',display:'flex',flexDirection:'column',gap:4}}>
+              <label style={lblStyle}>Bundle ID (optional)</label>
+              <div style={{display:'flex',gap:8}}>
+                <input value={form.bundleId||''} onChange={e=>set('bundleId',e.target.value)}
+                  placeholder="Link items sold together"
+                  style={{...inpStyle, fontFamily:'monospace', fontSize:12}} />
+                <button type="button" onClick={() => set('bundleId', generateId())}
+                  style={{background:'#1a1a2e',border:'1px solid #2a2a3e',color:'#8b8bcc',borderRadius:7,padding:'9px 12px',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>
+                  Generate
+                </button>
+              </div>
+              <div style={{fontSize:11,color:'#555',marginTop:2}}>Give the same Bundle ID to items sold together as a set.</div>
+            </div>
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:12}}>
             <label style={lblStyle}>Notes</label>
