@@ -424,50 +424,70 @@ export default function App() {
           <div style={{textAlign:'center',padding:'60px 20px',color:'#444',fontSize:15}}>
             {items.length === 0 ? 'No items yet — add your first flip!' : 'No items match your filters.'}
           </div>
-        ) : filtered.map(item => {
-          const profit = calcProfit(item)
-          const totalP = profit != null ? profit * num(item.qty||1) : null
-          const sc = STATUS_COLORS[item.status] || STATUS_COLORS['In Hand']
-          const subLine = [item.sub1,item.sub2].filter(Boolean).join(' · ')
-          return (
-            <div key={item.id} style={{background:'#111120',border:'1px solid #1e1e2e',borderRadius:12,padding:'14px 16px'}}>
-              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8}}>
-                <div>
-                  <div style={{fontWeight:700,color:'#f0f0ff',fontSize:14,lineHeight:1.3}}>{item.name}</div>
-                  {subLine && <div style={{color:'#555',fontSize:11,marginTop:3}}>{subLine}</div>}
-                  {item.notes && <div style={{color:'#6366f1',fontSize:11,marginTop:3,fontStyle:'italic'}}>{item.notes}</div>}
+        ) : (() => {
+          const sorted = [...filtered].sort((a,b) => (a.dateAdded||'').localeCompare(b.dateAdded||''))
+          const groups = []
+          let lastDate = null
+          for (const item of sorted) {
+            const d = item.dateAdded || ''
+            if (d !== lastDate) { groups.push({ type:'date', date:d }); lastDate = d }
+            groups.push({ type:'item', item })
+          }
+          return groups.map((g, idx) => {
+            if (g.type === 'date') {
+              const label = g.date ? new Date(g.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'long', year:'numeric' }) : 'No date'
+              return (
+                <div key={'d-'+g.date+idx} style={{display:'flex',alignItems:'center',gap:10,marginTop: idx===0?0:6}}>
+                  <div style={{flex:1,height:1,background:'#1e1e2e'}} />
+                  <span style={{fontSize:11,fontWeight:700,color:'#444',letterSpacing:'.06em',textTransform:'uppercase',whiteSpace:'nowrap'}}>{label}</span>
+                  <div style={{flex:1,height:1,background:'#1e1e2e'}} />
                 </div>
-                <div style={{display:'flex',gap:6,flexShrink:0}}>
-                  <button onClick={()=>openEdit(item.id)} style={{background:'transparent',border:'1px solid #2a2a3e',borderRadius:6,padding:'5px 8px',fontSize:13,cursor:'pointer'}}>✏️</button>
-                  <button onClick={()=>setDeleteId(item.id)} style={{background:'transparent',border:'1px solid #2a1a1a',borderRadius:6,padding:'5px 8px',fontSize:13,cursor:'pointer'}}>🗑️</button>
+              )
+            }
+            const item = g.item
+            const profit = calcProfit(item)
+            const totalP = profit != null ? profit * num(item.qty||1) : null
+            const sc = STATUS_COLORS[item.status] || STATUS_COLORS['In Hand']
+            const subLine = [item.sub1,item.sub2].filter(Boolean).join(' · ')
+            return (
+              <div key={item.id} style={{background:'#111120',border:'1px solid #1e1e2e',borderRadius:12,padding:'14px 16px'}}>
+                <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8}}>
+                  <div>
+                    <div style={{fontWeight:700,color:'#f0f0ff',fontSize:14,lineHeight:1.3}}>{item.name}</div>
+                    {subLine && <div style={{color:'#555',fontSize:11,marginTop:3}}>{subLine}</div>}
+                    {item.notes && <div style={{color:'#6366f1',fontSize:11,marginTop:3,fontStyle:'italic'}}>{item.notes}</div>}
+                  </div>
+                  <div style={{display:'flex',gap:6,flexShrink:0}}>
+                    <button onClick={()=>openEdit(item.id)} style={{background:'transparent',border:'1px solid #2a2a3e',borderRadius:6,padding:'5px 8px',fontSize:13,cursor:'pointer'}}>✏️</button>
+                    <button onClick={()=>setDeleteId(item.id)} style={{background:'transparent',border:'1px solid #2a1a1a',borderRadius:6,padding:'5px 8px',fontSize:13,cursor:'pointer'}}>🗑️</button>
+                  </div>
                 </div>
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>
-                <span style={{background:sc.bg,color:sc.text,border:`1px solid ${sc.accent}`,borderRadius:20,padding:'3px 10px',fontSize:11,fontWeight:700,letterSpacing:'.03em'}}>{item.status}</span>
-                {item.size && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#8b8bcc'}}>Size {item.size}</span>}
-                {num(item.qty)>1 && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#8b8bcc'}}>Qty {item.qty}</span>}
-                {item.platform && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#8b8bcc'}}>{item.platform}</span>}
-                {item.dateAdded && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#666'}}>{item.dateAdded}</span>}
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginTop:10,borderTop:'1px solid #1a1a28',paddingTop:10}}>
-                <div>
-                  <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Buy</div>
-                  <div style={{fontSize:13,fontWeight:700}}>{item.buyPrice ? fmt(item.buyPrice) : '—'}</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>
+                  <span style={{background:sc.bg,color:sc.text,border:`1px solid ${sc.accent}`,borderRadius:20,padding:'3px 10px',fontSize:11,fontWeight:700,letterSpacing:'.03em'}}>{item.status}</span>
+                  {item.size && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#8b8bcc'}}>Size {item.size}</span>}
+                  {num(item.qty)>1 && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#8b8bcc'}}>Qty {item.qty}</span>}
+                  {item.platform && <span style={{background:'#1a1a2e',border:'1px solid #2a2a3e',borderRadius:6,padding:'3px 9px',fontSize:11,fontWeight:600,color:'#8b8bcc'}}>{item.platform}</span>}
                 </div>
-                <div>
-                  <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Sell</div>
-                  <div style={{fontSize:13,fontWeight:700}}>{fmt(item.sellPrice)}</div>
-                </div>
-                <div>
-                  <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Profit</div>
-                  <div style={{fontSize:13,fontWeight:700,color: totalP==null?'#555':totalP>=0?'#4caf50':'#f44336'}}>
-                    {totalP==null ? '—' : `${totalP>=0?'+':''}${fmt(totalP)}`}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginTop:10,borderTop:'1px solid #1a1a28',paddingTop:10}}>
+                  <div>
+                    <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Buy</div>
+                    <div style={{fontSize:13,fontWeight:700}}>{item.buyPrice ? fmt(item.buyPrice) : '—'}</div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Sell</div>
+                    <div style={{fontSize:13,fontWeight:700}}>{fmt(item.sellPrice)}</div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:10,color:'#555',textTransform:'uppercase',letterSpacing:'.05em'}}>Profit</div>
+                    <div style={{fontSize:13,fontWeight:700,color: totalP==null?'#555':totalP>=0?'#4caf50':'#f44336'}}>
+                      {totalP==null ? '—' : `${totalP>=0?'+':''}${fmt(totalP)}`}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })
+        })()}
       </div>
 
       {/* ── Modals ── */}
