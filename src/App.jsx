@@ -280,7 +280,7 @@ export default function App() {
   // ── Stats ──
   const sold        = items.filter(i => i.status === 'Sold')
   const totalProfit = sold.reduce((s,i) => s + (calcProfit(i) ?? 0) * num(i.qty||1), 0)
-  const totalInvest = items.reduce((s,i) => s + num(i.buyPrice) * num(i.qty||1), 0)
+  const totalInvest = items.reduce((s,i) => s + num(i.buyPrice) * num(i.qty||1) + num(i.shippingCost), 0)
   const totalUnits  = items.reduce((s,i) => s + num(i.qty||1), 0)
   const soldUnits   = sold.reduce((s,i) => s + num(i.qty||1), 0)
   const stockValue  = items.filter(i => i.status !== 'Sold')
@@ -433,7 +433,8 @@ export default function App() {
             const d = item.dateAdded || ''
             const p = calcProfit(item)
             if (p != null) profitByDate[d] = (profitByDate[d] || 0) + p * num(item.qty||1)
-            if (item.buyPrice) spendByDate[d] = (spendByDate[d] || 0) + num(item.buyPrice) * num(item.qty||1) + num(item.shippingCost)
+            const itemSpend = num(item.buyPrice) * num(item.qty||1) + num(item.shippingCost)
+            if (itemSpend) spendByDate[d] = (spendByDate[d] || 0) + itemSpend + num(item.shippingCost)
           }
 
           const groups = []
