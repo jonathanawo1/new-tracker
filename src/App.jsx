@@ -18,8 +18,6 @@ const CATEGORIES = {
   "💿 Media":         { emoji:"💿", label:"Media",         sub1:"Edition / Format", sub2:"Catalog #",    sizeType:"none"    },
   "🛍️ General":      { emoji:"🛍️", label:"General",       sub1:"Variant",          sub2:"SKU",          sizeType:"none"    },
 }
-const SHOE_SIZES    = ["3","3.5","4","4.5","5","5.5","6","6.5","7","7.5","8","8.5","9","9.5","10","10.5","11","11.5","12","12.5","13","14","15"]
-const APPAREL_SIZES = ["XS","S","M","L","XL","XXL","3XL"]
 
 const num = v => parseFloat(v) || 0
 const fmt = n => (!n && n !== 0) ? "—" : `£${Number(n).toFixed(2)}`
@@ -261,11 +259,6 @@ export default function App() {
     clearTimeout(toastRef.current)
     setToast({ msg, show:true })
     toastRef.current = setTimeout(() => setToast(t => ({...t, show:false})), 2200)
-  }
-  function getSizeOpts() {
-    if (cat.sizeType === 'shoe')    return SHOE_SIZES
-    if (cat.sizeType === 'apparel') return APPAREL_SIZES
-    return null
   }
 
   // ── Stats ──
@@ -573,7 +566,7 @@ export default function App() {
 
       {/* ── Modals ── */}
       {editItem && (
-        <EditModal item={editItem} isEditing={isEditing} cat={cat} sizeOpts={getSizeOpts()}
+        <EditModal item={editItem} isEditing={isEditing} cat={cat}
           onSave={saveItem} onClose={closeEdit}
           onDelete={id => { closeEdit(); setDeleteId(id) }}
           onNeedSettings={() => setSettingsOpen(true)} />
@@ -620,10 +613,9 @@ export default function App() {
 }
 
 // ── EditModal ────────────────────────────────────────────────────────────────
-function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete, onNeedSettings }) {
+function EditModal({ item, isEditing, cat, onSave, onClose, onDelete, onNeedSettings }) {
   const [form, setForm]       = useState({...item})
   const [scanLoading, setScanLoading] = useState(false)
-  const [sizeIsCustom, setSizeIsCustom] = useState(() => !!item.size && !!sizeOpts && !sizeOpts.includes(item.size))
   const fileInputRef = useRef(null)
   const set = (k, v) => setForm(f => ({...f, [k]: v}))
   const profit = calcProfit(form)
@@ -713,26 +705,8 @@ function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete, 
             </div>
             <Field label={cat.sub1}><input value={form.sub1} onChange={e=>set('sub1',e.target.value)} placeholder={cat.sub1} style={inpStyle} /></Field>
             <Field label={cat.sub2}><input value={form.sub2} onChange={e=>set('sub2',e.target.value)} placeholder={cat.sub2} style={inpStyle} /></Field>
-            <Field label={sizeOpts ? 'Size' : 'Size / Variant'}>
-              {sizeOpts ? (
-                sizeIsCustom ? (
-                  <div style={{display:'flex',gap:8}}>
-                    <input value={form.size} onChange={e=>set('size',e.target.value)} placeholder="Custom size" style={inpStyle} autoFocus />
-                    <button type="button" onClick={() => { setSizeIsCustom(false); set('size','') }}
-                      style={{background:'#1a1a2e',border:'1px solid #2a2a3e',color:'#8b8bcc',borderRadius:7,padding:'9px 12px',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>
-                      List
-                    </button>
-                  </div>
-                ) : (
-                  <select value={form.size} onChange={e => e.target.value === '__custom__' ? setSizeIsCustom(true) : set('size',e.target.value)} style={inpStyle}>
-                    <option value="">Select</option>
-                    {sizeOpts.map(s=><option key={s}>{s}</option>)}
-                    <option value="__custom__">Custom…</option>
-                  </select>
-                )
-              ) : (
-                <input value={form.size} onChange={e=>set('size',e.target.value)} placeholder="Optional" style={inpStyle} />
-              )}
+            <Field label="Size / Variant">
+              <input value={form.size} onChange={e=>set('size',e.target.value)} placeholder="Optional" style={inpStyle} />
             </Field>
             <Field label="Quantity"><input type="number" min="1" value={form.qty} onChange={e=>set('qty',e.target.value)} style={inpStyle} /></Field>
             <Field label="Status">
