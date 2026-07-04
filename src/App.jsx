@@ -623,6 +623,7 @@ export default function App() {
 function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete, onNeedSettings }) {
   const [form, setForm]       = useState({...item})
   const [scanLoading, setScanLoading] = useState(false)
+  const [sizeIsCustom, setSizeIsCustom] = useState(() => !!item.size && !!sizeOpts && !sizeOpts.includes(item.size))
   const fileInputRef = useRef(null)
   const set = (k, v) => setForm(f => ({...f, [k]: v}))
   const profit = calcProfit(form)
@@ -714,10 +715,21 @@ function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete, 
             <Field label={cat.sub2}><input value={form.sub2} onChange={e=>set('sub2',e.target.value)} placeholder={cat.sub2} style={inpStyle} /></Field>
             <Field label={sizeOpts ? 'Size' : 'Size / Variant'}>
               {sizeOpts ? (
-                <select value={form.size} onChange={e=>set('size',e.target.value)} style={inpStyle}>
-                  <option value="">Select</option>
-                  {sizeOpts.map(s=><option key={s}>{s}</option>)}
-                </select>
+                sizeIsCustom ? (
+                  <div style={{display:'flex',gap:8}}>
+                    <input value={form.size} onChange={e=>set('size',e.target.value)} placeholder="Custom size" style={inpStyle} autoFocus />
+                    <button type="button" onClick={() => { setSizeIsCustom(false); set('size','') }}
+                      style={{background:'#1a1a2e',border:'1px solid #2a2a3e',color:'#8b8bcc',borderRadius:7,padding:'9px 12px',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>
+                      List
+                    </button>
+                  </div>
+                ) : (
+                  <select value={form.size} onChange={e => e.target.value === '__custom__' ? setSizeIsCustom(true) : set('size',e.target.value)} style={inpStyle}>
+                    <option value="">Select</option>
+                    {sizeOpts.map(s=><option key={s}>{s}</option>)}
+                    <option value="__custom__">Custom…</option>
+                  </select>
+                )
               ) : (
                 <input value={form.size} onChange={e=>set('size',e.target.value)} placeholder="Optional" style={inpStyle} />
               )}
