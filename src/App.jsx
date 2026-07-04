@@ -566,7 +566,7 @@ export default function App() {
 
       {/* ── Modals ── */}
       {editItem && (
-        <EditModal item={editItem} isEditing={isEditing} cat={cat}
+        <EditModal item={editItem} isEditing={isEditing} cat={cat} allItems={items}
           onSave={saveItem} onClose={closeEdit}
           onDelete={id => { closeEdit(); setDeleteId(id) }}
           onNeedSettings={() => setSettingsOpen(true)} />
@@ -613,12 +613,34 @@ export default function App() {
 }
 
 // ── EditModal ────────────────────────────────────────────────────────────────
-function EditModal({ item, isEditing, cat, onSave, onClose, onDelete, onNeedSettings }) {
+function EditModal({ item, isEditing, cat, allItems, onSave, onClose, onDelete, onNeedSettings }) {
   const [form, setForm]       = useState({...item})
   const [scanLoading, setScanLoading] = useState(false)
+  const [nameOpen, setNameOpen] = useState(false)
   const fileInputRef = useRef(null)
   const set = (k, v) => setForm(f => ({...f, [k]: v}))
   const profit = calcProfit(form)
+
+  const nameSuggestions = (() => {
+    const q = form.name.trim().toLowerCase()
+    if (!q) return []
+    const seen = new Set()
+    const matches = []
+    for (const it of allItems || []) {
+      if (!it.name || it.id === form.id) continue
+      if (!it.name.toLowerCase().includes(q)) continue
+      if (seen.has(it.name)) continue
+      seen.add(it.name)
+      matches.push(it)
+      if (matches.length >= 8) break
+    }
+    return matches
+  })()
+
+  function pickSuggestion(it) {
+    setForm(f => ({ ...f, name: it.name, sub1: it.sub1 || '', sub2: it.sub2 || '', size: it.size || '', platform: it.platform || '', buyPrice: it.buyPrice || '' }))
+    setNameOpen(false)
+  }
 
   async function handleScan(e) {
     const file = e.target.files[0]
@@ -699,9 +721,28 @@ function EditModal({ item, isEditing, cat, onSave, onClose, onDelete, onNeedSett
 
         <div style={{padding:'16px 20px',overflowY:'auto',flex:1}}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px 12px',marginBottom:12}}>
-            <div style={{gridColumn:'1/-1',display:'flex',flexDirection:'column',gap:4}}>
+            <div style={{gridColumn:'1/-1',display:'flex',flexDirection:'column',gap:4,position:'relative'}}>
               <label style={lblStyle}>Name *</label>
-              <input value={form.name} onChange={e=>set('name',e.target.value)} placeholder="Item name" style={inpStyle} />
+              <input value={form.name}
+                onChange={e=>{ set('name',e.target.value); setNameOpen(true) }}
+                onFocus={() => setNameOpen(true)}
+                onBlur={() => setTimeout(() => setNameOpen(false), 150)}
+                placeholder="Item name" style={inpStyle} autoComplete="off" />
+              {nameOpen && nameSuggestions.length > 0 && (
+                <div style={{position:'absolute',top:'100%',left:0,right:0,marginTop:4,zIndex:10,background:'#13131f',border:'1px solid #2a2a3e',borderRadius:10,maxHeight:220,overflowY:'auto',boxShadow:'0 8px 32px rgba(0,0,0,.7)'}}>
+                  {nameSuggestions.map(it => (
+                    <button key={it.id} type="button" onMouseDown={() => pickSuggestion(it)}
+                      style={{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',borderBottom:'1px solid #1a1a28',color:'#e0e0f0',padding:'9px 14px',fontSize:13,cursor:'pointer'}}>
+                      <div style={{fontWeight:600}}>{it.name}</div>
+                      {(it.sub1 || it.sub2 || it.size) && (
+                        <div style={{fontSize:11,color:'#666',marginTop:2}}>
+                          {[it.sub1, it.sub2, it.size && `Size ${it.size}`].filter(Boolean).join(' · ')}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <Field label={cat.sub1}><input value={form.sub1} onChange={e=>set('sub1',e.target.value)} placeholder={cat.sub1} style={inpStyle} /></Field>
             <Field label={cat.sub2}><input value={form.sub2} onChange={e=>set('sub2',e.target.value)} placeholder={cat.sub2} style={inpStyle} /></Field>
