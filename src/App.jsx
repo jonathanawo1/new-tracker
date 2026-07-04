@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { initializeApp, getApps, getApp } from 'firebase/app'
-import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore'
+import { createClient } from '@supabase/supabase-js'
 
 const PLATFORMS = ["StockX","GOAT","eBay","Grailed","TCGPlayer","Depop","Poshmark","Facebook Marketplace","Local","Other"]
 const STATUSES  = ["In Hand","Listed","Sold","Pending"]
@@ -47,22 +46,20 @@ function fileToBase64(file) {
   })
 }
 
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyC6KYx7FHFGeipSaiL5X2iV4EwMprK2_CQ",
-  authDomain: "newtracker-9ff56.firebaseapp.com",
-  projectId: "newtracker-9ff56",
-  storageBucket: "newtracker-9ff56.firebasestorage.app",
-  messagingSenderId: "251436391719",
-  appId: "1:251436391719:web:205c76a87b2c1b6e651d02",
-}
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+let _supabase = null
 function getDb() {
+  if (_supabase) return _supabase
   try {
-    const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG)
-    return getFirestore(app)
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null
+    _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    return _supabase
   } catch { return null }
 }
-const getSyncId = () => localStorage.getItem('rl_sync_id') || ''
+const SHARED_SYNC_ID = "3795cd90-46d0-4f41-a32c-f246c08440ad"
+const getSyncId = () => SHARED_SYNC_ID
 const generateId = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2,10) + Date.now().toString(36))
 
 const SEED_ITEMS = [
@@ -179,77 +176,71 @@ export default function App() {
   useEffect(() => { itemsRef.current = items }, [items])
   useEffect(() => { categoryRef.current = category }, [category])
 
+  function applyCloudRow(data) {
+    if (!data) return
+    if (Array.isArray(data.items) && data.items.length > 0) {
+      setItems(data.items)
+      localStorage.setItem('rl_items', JSON.stringify(data.items))
+    }
+    if (data.category) {
+      setCategory(data.category)
+      localStorage.setItem('rl_category', data.category)
+    }
+  }
+
   useEffect(() => {
     const db = getDb()
     const syncId = getSyncId()
     if (!db || !syncId) return
-    const ref = doc(db, 'ledgers', syncId)
 
     // Immediately pull on load so new devices get data right away
-    getDoc(ref).then(snap => {
-      if (snap.exists()) {
-        const data = snap.data()
-        if (Array.isArray(data.items) && data.items.length > 0) {
-          setItems(data.items)
-          localStorage.setItem('rl_items', JSON.stringify(data.items))
-        }
-        if (data.category) {
-          setCategory(data.category)
-          localStorage.setItem('rl_category', data.category)
-        }
+    db.from('ledgers').select('items,category').eq('sync_id', syncId).maybeSingle()
+      .then(({ data, error }) => {
+        if (error) { setCloudStatus('error'); return }
+        applyCloudRow(data)
         setCloudStatus('synced')
-      }
-    }).catch(() => setCloudStatus('error'))
+      })
 
     // Then keep listening for real-time updates
-    const unsub = onSnapshot(ref, snap => {
-      if (skipNext.current) { skipNext.current = false; return }
-      if (snap.exists()) {
-        const data = snap.data()
-        if (Array.isArray(data.items) && data.items.length > 0) {
-          setItems(data.items)
-          localStorage.setItem('rl_items', JSON.stringify(data.items))
-        }
-        if (data.category) {
-          setCategory(data.category)
-          localStorage.setItem('rl_category', data.category)
-        }
-      }
-      setCloudStatus('synced')
-    }, () => setCloudStatus('error'))
-    return unsub
+    const channel = db.channel(`ledgers:${syncId}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'ledgers', filter: `sync_id=eq.${syncId}` },
+        payload => {
+          if (skipNext.current) { skipNext.current = false; return }
+          applyCloudRow(payload.new)
+          setCloudStatus('synced')
+        })
+      .subscribe(status => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setCloudStatus('error')
+      })
+    return () => db.removeChannel(channel)
   }, [])
 
   async function pullFromCloud() {
     const db = getDb()
     const syncId = getSyncId()
-    if (!db || !syncId) return
-    const snap = await getDoc(doc(db, 'ledgers', syncId))
-    if (snap.exists()) {
-      const data = snap.data()
-      if (Array.isArray(data.items) && data.items.length > 0) {
-        setItems(data.items)
-        localStorage.setItem('rl_items', JSON.stringify(data.items))
-      }
-      if (data.category) {
-        setCategory(data.category)
-        localStorage.setItem('rl_category', data.category)
-      }
-      setCloudStatus('synced')
-    }
+    if (!db) throw new Error('Supabase not configured')
+    if (!syncId) throw new Error('No Sync ID set')
+    const { data, error } = await db.from('ledgers').select('items,category').eq('sync_id', syncId).maybeSingle()
+    if (error) { setCloudStatus('error'); throw error }
+    applyCloudRow(data)
+    setCloudStatus('synced')
   }
 
   async function pushToCloud(nextItems, nextCat) {
     const db = getDb()
     const syncId = getSyncId()
-    if (!db || !syncId) return
+    if (!db) throw new Error('Supabase not configured')
+    if (!syncId) throw new Error('No Sync ID set')
     skipNext.current = true
-    try {
-      await setDoc(doc(db, 'ledgers', syncId), { items: nextItems, category: nextCat })
-      setCloudStatus('synced')
-    } catch {
+    const { error } = await db.from('ledgers')
+      .upsert({ sync_id: syncId, items: nextItems, category: nextCat, updated_at: new Date().toISOString() })
+    if (error) {
       skipNext.current = false
       setCloudStatus('error')
+      throw error
+    } else {
+      setCloudStatus('synced')
     }
   }
 
@@ -258,7 +249,7 @@ export default function App() {
   function persist(nextItems, nextCat) {
     localStorage.setItem('rl_items', JSON.stringify(nextItems))
     localStorage.setItem('rl_category', nextCat)
-    pushToCloud(nextItems, nextCat)
+    pushToCloud(nextItems, nextCat).catch(() => {})
   }
   function updateItems(fn) {
     setItems(prev => { const next = fn(prev); persist(next, categoryRef.current); return next })
@@ -794,19 +785,12 @@ function EditModal({ item, isEditing, cat, sizeOpts, onSave, onClose, onDelete, 
 function SettingsModal({ onClose, onPush, onPull }) {
   const [apiKey,  setApiKey]  = useState(localStorage.getItem('rl_anthropic_key') || '')
   const [email,   setEmail]   = useState(localStorage.getItem('rl_email') || '')
-  const [syncId,  setSyncId]  = useState(localStorage.getItem('rl_sync_id') || '')
   const [syncMsg, setSyncMsg] = useState('')
 
   function handleSave() {
     localStorage.setItem('rl_anthropic_key', apiKey.trim())
     localStorage.setItem('rl_email', email.trim())
-    const prevSyncId = localStorage.getItem('rl_sync_id') || ''
-    localStorage.setItem('rl_sync_id', syncId.trim())
-    if (syncId.trim() !== prevSyncId) {
-      window.location.reload()
-    } else {
-      onClose()
-    }
+    onClose()
   }
 
   async function handleAction(fn, label) {
@@ -842,37 +826,18 @@ function SettingsModal({ onClose, onPush, onPull }) {
           <div style={{borderTop:'1px solid #1e1e2e',paddingTop:16}}>
             <div style={{fontSize:12,fontWeight:700,color:'#8b8bcc',marginBottom:8,letterSpacing:'.05em',textTransform:'uppercase'}}>Cloud Sync</div>
             <div style={{fontSize:12,color:'#555',marginBottom:12,lineHeight:1.6}}>
-              Sync your data across all devices in real time. Generate a Sync ID on one device, then enter the same ID on your other devices.
+              This app automatically syncs to one shared database in real time — every device that opens it sees the same live data. No setup needed.
             </div>
-            <div style={{fontSize:12,background:'#1a1a0a',border:'1px solid #4a3a00',borderRadius:8,padding:'10px 12px',marginBottom:12,color:'#aaa',lineHeight:1.7}}>
-              <span style={{color:'#f59e0b',fontWeight:700}}>⚠ Firestore rules must allow access.</span><br/>
-              In Firebase Console → Firestore → Rules, set:<br/>
-              <span style={{fontFamily:'monospace',color:'#8b8bcc',fontSize:11}}>allow read, write: if true;</span>
+            <div style={{display:'flex',gap:8,marginTop:10}}>
+              <button onClick={() => handleAction(onPull, 'Pulling')}
+                style={{flex:1,background:'#1a1a2e',border:'1px solid #4a9eff',color:'#4a9eff',borderRadius:8,padding:'9px 12px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+                ⬇ Pull from Cloud
+              </button>
+              <button onClick={() => handleAction(onPush, 'Pushing')}
+                style={{flex:1,background:'#1a2a1a',border:'1px solid #4caf50',color:'#4caf50',borderRadius:8,padding:'9px 12px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+                ⬆ Push to Cloud
+              </button>
             </div>
-            <Field label="Sync ID">
-              <div style={{display:'flex',gap:8}}>
-                <input value={syncId} onChange={e=>setSyncId(e.target.value)}
-                  placeholder="Generate or paste your sync key"
-                  style={{...inpStyle, fontFamily:'monospace', fontSize:12}} />
-                <button onClick={() => setSyncId(generateId())}
-                  style={{background:'#1a1a2e',border:'1px solid #2a2a3e',color:'#8b8bcc',borderRadius:7,padding:'9px 12px',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>
-                  Generate
-                </button>
-              </div>
-              <div style={{fontSize:11,color:'#555',marginTop:4}}>Use the same Sync ID on every device. Keep it private — anyone with this ID can read your data.</div>
-            </Field>
-            {syncId && (
-              <div style={{display:'flex',gap:8,marginTop:10}}>
-                <button onClick={() => handleAction(onPull, 'Pulling')}
-                  style={{flex:1,background:'#1a1a2e',border:'1px solid #4a9eff',color:'#4a9eff',borderRadius:8,padding:'9px 12px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
-                  ⬇ Pull from Cloud
-                </button>
-                <button onClick={() => handleAction(onPush, 'Pushing')}
-                  style={{flex:1,background:'#1a2a1a',border:'1px solid #4caf50',color:'#4caf50',borderRadius:8,padding:'9px 12px',fontSize:13,fontWeight:700,cursor:'pointer'}}>
-                  ⬆ Push to Cloud
-                </button>
-              </div>
-            )}
             {syncMsg && (
               <div style={{marginTop:8,fontSize:12,color:syncMsg.startsWith('Error')?'#f44336':'#4caf50',textAlign:'center',wordBreak:'break-all'}}>{syncMsg}</div>
             )}
