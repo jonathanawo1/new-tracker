@@ -29,6 +29,37 @@ function calcProfit(item) {
   return gross - num(item.buyPrice) - gross * (num(item.platformFee) / 100) - num(item.shippingCost)
 }
 
+// Profit for a whole line (qty units). Shipping is a per-line cost, so it is only subtracted once.
+function lineProfit(item) {
+  if (!num(item.sellPrice)) return null
+  const q = num(item.qty||1)
+  const gross = num(item.sellPrice) * q
+  return gross - num(item.buyPrice) * q - gross * (num(item.platformFee) / 100) - num(item.shippingCost)
+}
+
+// Profit for a bundle: total sell minus the cost of every item in it (sold or not).
+function bundleProfitOf(bItems) {
+  const totalSell = bItems.reduce((s,i) => s + num(i.sellPrice)*num(i.qty||1), 0)
+  if (!totalSell) return null
+  const totalBuy  = bItems.reduce((s,i) => s + num(i.buyPrice)*num(i.qty||1), 0)
+  const totalCost = bItems.reduce((s,i) => s + num(i.shippingCost), 0)
+  const totalFees = bItems.reduce((s,i) => s + num(i.sellPrice)*num(i.qty||1)*(num(i.platformFee)/100), 0)
+  return totalSell - totalBuy - totalCost - totalFees
+}
+
+// Raw profit made per day: only items that have been sold (have a sell price).
+// Costs of unsold stock are not subtracted.
+function profitByDay(list) {
+  const byDay = {}
+  for (const i of list) {
+    const p = lineProfit(i)
+    if (p == null) continue
+    const d = i.dateAdded || ''
+    byDay[d] = (byDay[d] || 0) + p
+  }
+  return byDay
+}
+
 function newItem() {
   return { id: Date.now().toString(), name:"", sub1:"", sub2:"", size:"", qty:"1",
     buyPrice:"", sellPrice:"", platformFee:"", shippingCost:"",
@@ -263,7 +294,8 @@ export default function App() {
 
   // ── Stats ──
   const sold        = items.filter(i => i.status === 'Sold')
-  const totalProfit = sold.reduce((s,i) => s + (calcProfit(i) ?? 0) * num(i.qty||1), 0)
+  const dailyProfit = profitByDay(items)
+  const totalProfit = Object.values(dailyProfit).reduce((s,p) => s + p, 0)
   const totalInvest = items.reduce((s,i) => s + num(i.buyPrice) * num(i.qty||1) + num(i.shippingCost), 0)
   const totalUnits  = items.reduce((s,i) => s + num(i.qty||1), 0)
   const soldUnits   = sold.reduce((s,i) => s + num(i.qty||1), 0)
@@ -413,14 +445,12 @@ export default function App() {
         ) : (() => {
           const sorted = [...filtered].sort((a,b) => (b.dateAdded||'').localeCompare(a.dateAdded||''))
           // pre-compute profit and spend per date
-          const profitByDate = {}
+          const profitByDate = dailyProfit
           const spendByDate = {}
           for (const item of sorted) {
             const d = item.dateAdded || ''
-            const p = calcProfit(item)
-            if (p != null) profitByDate[d] = (profitByDate[d] || 0) + p * num(item.qty||1)
             const itemSpend = num(item.buyPrice) * num(item.qty||1) + num(item.shippingCost)
-            if (itemSpend) spendByDate[d] = (spendByDate[d] || 0) + itemSpend + num(item.shippingCost)
+            if (itemSpend) spendByDate[d] = (spendByDate[d] || 0) + itemSpend
           }
 
           // group items by bundleId
@@ -473,9 +503,7 @@ export default function App() {
               const bItems = g.items
               const totalBuy = bItems.reduce((s,i) => s + num(i.buyPrice)*num(i.qty||1), 0)
               const totalSell = bItems.reduce((s,i) => s + num(i.sellPrice)*num(i.qty||1), 0)
-              const totalCosts = bItems.reduce((s,i) => s + num(i.shippingCost), 0)
-              const totalFees = bItems.reduce((s,i) => s + num(i.sellPrice)*num(i.qty||1)*(num(i.platformFee)/100), 0)
-              const bundleProfit = totalSell > 0 ? totalSell - totalBuy - totalCosts - totalFees : null
+              const bundleProfit = bundleProfitOf(bItems)
               const sc = STATUS_COLORS[bItems[0].status] || STATUS_COLORS['In Hand']
               return (
                 <div key={'bundle-'+g.bundleId} style={{background:'#111120',border:'1px solid #2a2a4e',borderRadius:12,padding:'14px 16px'}}>
@@ -520,7 +548,7 @@ export default function App() {
             }
             const item = g.item
             const profit = calcProfit(item)
-            const totalP = profit != null ? profit * num(item.qty||1) : null
+            const totalP = lineProfit(item)
             const sc = STATUS_COLORS[item.status] || STATUS_COLORS['In Hand']
             const subLine = [item.sub1,item.sub2].filter(Boolean).join(' · ')
             return (
